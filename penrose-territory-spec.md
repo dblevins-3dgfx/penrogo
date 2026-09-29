@@ -134,7 +134,7 @@ It looks one move ahead only, so it will not anticipate an opponent's capture on
 |---|---|
 | Mouse move | Move the preview (snaps to legal edges) |
 | Left click | Place the tile |
-| Scroll wheel over the board | Rotate 36 deg: up = clockwise, down = counter-clockwise. One step per wheel notch, or one per trackpad swipe (a swipe ends after a 150 ms pause). The page does not scroll while the pointer is over the board |
+| Scroll wheel over the board | Rotate 36 deg: up = clockwise, down = counter-clockwise. One step per wheel notch, or one per 50 px of trackpad scrolling (`TRACKPAD_STEP`), so longer swipes turn further; a partial step left over is dropped after a 150 ms pause. The page does not scroll while the pointer is over the board |
 | Right click | Rotate 36 deg clockwise (Shift + right click: counter-clockwise); the browser menu is suppressed on the board |
 | Left / Right arrow | Rotate 36 deg counter-clockwise / clockwise |
 | Rotation hint | Replaces the rotate buttons: lists the rotation controls and shows the current angle |

@@ -1023,16 +1023,17 @@ const PenroseTerritoryGame = () => {
 
   // Mouse wheel over the board rotates the tile: up = clockwise. A mouse
   // wheel notch arrives as one large delta and turns one step. A trackpad
-  // swipe arrives as a stream of small deltas; it turns one step per swipe,
-  // where a swipe ends after a short pause in the stream.
+  // swipe arrives as a stream of small deltas; it turns one step for every
+  // TRACKPAD_STEP pixels scrolled, so a longer swipe turns further. Any
+  // leftover partial step is dropped after a short pause in the stream.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !gameStarted) return;
 
     const WHEEL_NOTCH = 50;
-    const SWIPE_STEP = 30;
+    const TRACKPAD_STEP = 50; // lower = faster trackpad rotation
     const SWIPE_END_MS = 150;
-    const swipe = { total: 0, done: false, timer: null };
+    const swipe = { total: 0, timer: null };
 
     const rotateBy = (dy) => setRotation(prev => (prev + (dy < 0 ? 36 : -36) + 360) % 360);
 
@@ -1045,12 +1046,11 @@ const PenroseTerritoryGame = () => {
       }
 
       clearTimeout(swipe.timer);
-      swipe.timer = setTimeout(() => { swipe.total = 0; swipe.done = false; }, SWIPE_END_MS);
-      if (swipe.done) return;
+      swipe.timer = setTimeout(() => { swipe.total = 0; }, SWIPE_END_MS);
       swipe.total += dy;
-      if (Math.abs(swipe.total) >= SWIPE_STEP) {
+      while (Math.abs(swipe.total) >= TRACKPAD_STEP) {
         rotateBy(swipe.total);
-        swipe.done = true;
+        swipe.total -= Math.sign(swipe.total) * TRACKPAD_STEP;
       }
     };
 
