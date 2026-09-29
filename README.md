@@ -32,4 +32,5 @@ Then open http://localhost:5173. The dev server also listens on your local netwo
 - `go-engine.ts`: Go rules on the tile graph and the computer players (Monte Carlo tree search, plus the older heuristic player as a baseline)
 - `ai-worker.ts`: runs the computer's search in a Web Worker
 - `penrose-board.ts`: Penrose tiling generation and the tile adjacency graph
+- `skins.ts`: visual skins (Plain Jane, Dazzle): page colors and how the board is drawn
 - `src/main.tsx`, `src/index.css`, `index.html`: Vite entry point and Tailwind setup

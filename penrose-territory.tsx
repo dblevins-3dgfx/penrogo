@@ -1,7 +1,27 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { RotateCw, Play, SkipForward, RotateCcw, CircleHelp, X } from 'lucide-react';
+import { RotateCw, Play, SkipForward, RotateCcw, CircleHelp, X, Palette } from 'lucide-react';
 import { buildBoard } from './penrose-board';
 import { opponentOf, playMove, positionKey, scoreArea } from './go-engine';
+import { SKINS, DEFAULT_SKIN, skinById } from './skins';
+
+// The chosen skin is remembered in this browser (localStorage).
+const SKIN_STORAGE_KEY = 'penrogo.skin';
+
+const loadSkin = () => {
+  try {
+    return skinById(localStorage.getItem(SKIN_STORAGE_KEY) || DEFAULT_SKIN).id;
+  } catch {
+    return DEFAULT_SKIN;
+  }
+};
+
+const saveSkin = (id) => {
+  try {
+    localStorage.setItem(SKIN_STORAGE_KEY, id);
+  } catch {
+    // Storage unavailable (e.g. private mode): the choice lasts this visit
+  }
+};
 
 // How long the computer may think per move, in seconds. The choice is
 // remembered in this browser (localStorage) and defaults to 3.
@@ -81,11 +101,6 @@ const getVertices = (tile) => tile.type === 'kite'
   ? getKiteVertices(tile.x, tile.y, tile.rotation)
   : getDartVertices(tile.x, tile.y, tile.rotation);
 
-const centroidOf = (verts) => ({
-  x: verts.reduce((s, v) => s + v.x, 0) / verts.length,
-  y: verts.reduce((s, v) => s + v.y, 0) / verts.length
-});
-
 // Both tiles split into two triangles along the vertex 0 to 2 diagonal
 // (the axis), which also handles the dart's concave notch.
 const toTriangles = (v) => [[v[0], v[1], v[2]], [v[0], v[2], v[3]]];
@@ -113,40 +128,6 @@ const isOutsidePlayfield = (verts) => {
 const tileAtPoint = (tiles, x, y) =>
   tiles.findIndex(t => toTriangles(t.verts).some(tri => pointInTriangle(x, y, tri)));
 
-// ---------------------------------------------------------------------
-// Drawing
-// ---------------------------------------------------------------------
-
-const PLAYER_FILL = { 1: 'rgba(59, 130, 246, 0.75)', 2: 'rgba(239, 68, 68, 0.75)' };
-const PLAYER_STROKE = { 1: '#1e40af', 2: '#991b1b' };
-const TERRITORY_FILL = { 1: 'rgba(59, 130, 246, 0.25)', 2: 'rgba(239, 68, 68, 0.25)' };
-
-const tracePolygon = (ctx, verts) => {
-  ctx.beginPath();
-  ctx.moveTo(verts[0].x, verts[0].y);
-  verts.forEach(v => ctx.lineTo(v.x, v.y));
-  ctx.closePath();
-};
-
-const drawStar = (ctx, c) => {
-  ctx.save();
-  ctx.beginPath();
-  for (let i = 0; i < 10; i++) {
-    const r = i % 2 === 0 ? 9 : 4;
-    const a = -Math.PI / 2 + (i * Math.PI) / 5;
-    const px = c.x + r * Math.cos(a);
-    const py = c.y + r * Math.sin(a);
-    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-  }
-  ctx.closePath();
-  ctx.fillStyle = '#facc15';
-  ctx.fill();
-  ctx.strokeStyle = '#78350f';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-  ctx.restore();
-};
-
 const PenroseTerritoryGame = () => {
   const canvasRef = useRef(null);
   const [mode, setMode] = useState('ai'); // 'ai' (vs computer) or 'two'
@@ -165,6 +146,8 @@ const PenroseTerritoryGame = () => {
   const [rotation, setRotation] = useState(0);
   const [hoveredPos, setHoveredPos] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [skinId, setSkinId] = useState(loadSkin);
+  const skin = skinById(skinId);
 
   const tiles = board ? board.tiles : null;
   const isComputerTurn = mode === 'ai' && currentPlayer === 2;
@@ -398,64 +381,18 @@ const PenroseTerritoryGame = () => {
 
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    skin.drawBackground(ctx, canvas.width, canvas.height);
 
-    if (!board) {
-      // Grid background until the board exists
-      ctx.strokeStyle = '#e5e7eb';
-      ctx.lineWidth = 0.5;
-      for (let i = 0; i < canvas.width; i += 40) {
-        ctx.beginPath();
-        ctx.moveTo(i, 0);
-        ctx.lineTo(i, canvas.height);
-        ctx.stroke();
-      }
-      for (let i = 0; i < canvas.height; i += 40) {
-        ctx.beginPath();
-        ctx.moveTo(0, i);
-        ctx.lineTo(canvas.width, i);
-        ctx.stroke();
-      }
-    } else {
+    if (board) {
       const territory = gameOver ? scoreArea(tiles, stones).owner : null;
       tiles.forEach((t, i) => {
-        tracePolygon(ctx, t.verts);
-        const s = stones[i];
-        ctx.fillStyle = s ? PLAYER_FILL[s] : territory && territory[i] ? TERRITORY_FILL[territory[i]] : '#f1f5f9';
-        ctx.fill();
-        ctx.strokeStyle = s ? PLAYER_STROKE[s] : '#94a3b8';
-        ctx.lineWidth = s ? 1.5 : 1;
-        ctx.stroke();
+        skin.drawTile(ctx, t.verts, { stone: stones[i], territory: territory ? territory[i] : 0 });
       });
-
-      if (lastMove !== null && stones[lastMove]) {
-        const verts = tiles[lastMove].verts;
-        ctx.save();
-        tracePolygon(ctx, verts);
-        ctx.shadowColor = '#facc15';
-        ctx.shadowBlur = 10;
-        ctx.strokeStyle = '#facc15';
-        ctx.lineWidth = 4;
-        ctx.lineJoin = 'round';
-        ctx.stroke();
-        ctx.restore();
-        drawStar(ctx, centroidOf(verts));
-      }
+      if (lastMove !== null && stones[lastMove]) skin.drawLastMove(ctx, tiles[lastMove].verts);
     }
 
     if (target) {
-      ctx.save();
-      tracePolygon(ctx, target.verts);
-      if (target.legal) {
-        ctx.fillStyle = PLAYER_FILL[currentPlayer];
-        ctx.globalAlpha = 0.5;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
-      ctx.strokeStyle = target.legal ? '#16a34a' : '#dc2626';
-      ctx.lineWidth = 3;
-      ctx.setLineDash(target.legal ? [] : [6, 4]);
-      ctx.stroke();
-      ctx.restore();
+      skin.drawTarget(ctx, target.verts, currentPlayer, target.legal);
 
       // Red border while the opening tile would stick out of the board
       if (target.kind === 'opening' && !target.legal) {
@@ -466,7 +403,7 @@ const PenroseTerritoryGame = () => {
         ctx.restore();
       }
     }
-  }, [board, stones, lastMove, gameOver, target, currentPlayer]);
+  }, [board, stones, lastMove, gameOver, target, currentPlayer, skin]);
 
   // Touch devices have no hover, so the preview follows a finger drag and
   // is lifted above the fingertip so it isn't hidden under it.
@@ -532,20 +469,38 @@ const PenroseTerritoryGame = () => {
   // toolbars): header, scores and controls take their natural height and the
   // board scales to the largest 4:3 size that fits in the rest.
   return (
-    <div className="w-full h-dvh overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center p-2 sm:p-3">
+    <div className={`w-full h-dvh overflow-hidden ${skin.chrome.page} flex flex-col items-center p-2 sm:p-3`}>
       <div className="max-w-6xl w-full h-full flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Penrogo</h1>
-          <button
-            onClick={() => setShowHelp(true)}
-            className="text-slate-300 hover:text-white flex items-center gap-1 text-sm"
-          >
-            <CircleHelp size={20} />
-            How to Play
-          </button>
+          <h1 className={`text-xl sm:text-2xl font-bold ${skin.chrome.title}`}>Penrogo</h1>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <label className="text-slate-300 text-sm flex items-center gap-2">
+              <Palette size={18} />
+              <select
+                value={skinId}
+                onChange={(e) => {
+                  setSkinId(e.target.value);
+                  saveSkin(e.target.value);
+                }}
+                aria-label="Skin"
+                className="bg-slate-700 text-white rounded-lg px-2 py-1"
+              >
+                {SKINS.map(k => (
+                  <option key={k.id} value={k.id}>{k.name}</option>
+                ))}
+              </select>
+            </label>
+            <button
+              onClick={() => setShowHelp(true)}
+              className="text-slate-300 hover:text-white flex items-center gap-1 text-sm"
+            >
+              <CircleHelp size={20} />
+              How to Play
+            </button>
+          </div>
         </div>
 
-        <div className="bg-slate-800 rounded-lg px-3 py-2 flex justify-around items-center">
+        <div className={`${skin.chrome.panel} rounded-lg px-3 py-2 flex justify-around items-center`}>
           <div className="text-center">
             <div className="text-blue-400 text-xl sm:text-2xl font-bold">{shownScore[1]}</div>
             <div className="text-slate-400 text-xs sm:text-sm">
@@ -570,7 +525,7 @@ const PenroseTerritoryGame = () => {
           </div>
         </div>
 
-        <div className="bg-slate-800 rounded-lg p-2 flex gap-2 sm:gap-3 items-center justify-center flex-wrap">
+        <div className={`${skin.chrome.panel} rounded-lg p-2 flex gap-2 sm:gap-3 items-center justify-center flex-wrap`}>
           {!gameStarted ? (
             <>
               <div className="flex gap-2">
@@ -722,7 +677,7 @@ const PenroseTerritoryGame = () => {
             onPointerLeave={handlePointerLeave}
             onContextMenu={handleContextMenu}
             style={{ touchAction: 'none', width: 'min(100cqw, 100cqh * 4 / 3)' }}
-            className="h-auto bg-white rounded shadow-2xl cursor-crosshair"
+            className={`h-auto ${skin.chrome.canvas} rounded shadow-2xl cursor-crosshair`}
           />
         </div>
       </div>
@@ -733,7 +688,7 @@ const PenroseTerritoryGame = () => {
           onClick={() => setShowHelp(false)}
         >
           <div
-            className="max-w-2xl mx-auto bg-slate-800 rounded-lg p-4 sm:p-6 text-slate-300 text-sm sm:text-base"
+            className={`max-w-2xl mx-auto ${skin.chrome.panel} rounded-lg p-4 sm:p-6 text-slate-300 text-sm sm:text-base`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-2">

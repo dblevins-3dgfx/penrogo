@@ -67,6 +67,15 @@ The original one-move-lookahead heuristic player is kept in `go-engine.ts` (`cho
 | Game end | Surrounded empty regions tinted in their owner's color |
 | Status line | Captures, passes, illegal-move reasons, and the final result |
 
+## 7b. Skins (`skins.ts`)
+
+The look is chosen from a picker in the header, at any time (even mid-game); it never affects play. The choice is remembered in the browser's localStorage. Each skin supplies Tailwind classes for the page chrome and canvas hooks for the background, each tile (stone, empty, or territory at the end), the last move, and the hover/preview target.
+
+| Skin | Look |
+|---|---|
+| Plain Jane (default) | The table above: flat blue and red on a white board with a light grid |
+| Dazzle | Bejeweled-inspired. Stones are cut gems, sapphire for Player 1 and ruby for Player 2: a table facet plus one side facet per edge, each shaded by how it faces a light at the upper left, with a white glint. Empty tiles are dark sockets with gold rims on a velvet background with fixed gold sparkles. The last move gets a glow and twinkles; the hover preview is a translucent gem with a glowing outline. Page panels are purple with gold rings, and the title is a gold-pink-blue gradient |
+
 ## 8. Controls and Layout
 
 Same as `main`: mouse click to place; the scroll wheel, right-click (Shift for the other way) or Left/Right arrows rotate the opening tile on desktop; on touch devices the preview follows a finger drag (lifted 60 canvas units above it), rotate buttons are shown, and **Place** confirms. The page fills the visible window without scrolling, and the rules are on a **How to Play** overlay. Rotation controls appear only during the opening.
