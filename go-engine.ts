@@ -470,12 +470,18 @@ const priorFor = (b, p, c, last) => {
   return prior;
 };
 
+// Candidate moves exclude own-eye fills. At the root (the move actually
+// played) they also exclude self-atari (leaving its own group with one
+// liberty) unless it captures: early in a game, random playouts barely
+// notice losing a stone, so the search can't be trusted to reject these.
+// Deeper in the tree self-atari stays allowed, so the search can still
+// consider sacrifices by either side.
 const expand = (node, b, c, last, rootFilter) => {
   node.children = [];
   for (let k = 0; k < b.emptyCount; k++) {
     const p = b.empty[k];
     if (b.isOwnEye(p, c) || !b.legal(p, c)) continue;
-    if (rootFilter && !rootFilter(p)) continue;
+    if (rootFilter && (b.libsAfter(p, c) < 2 || !rootFilter(p))) continue;
     node.children.push(new Node(p, c, priorFor(b, p, c, last)));
   }
   if (node.children.length === 0) node.children.push(new Node(PASS, c, 5));

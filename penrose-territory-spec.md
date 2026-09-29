@@ -48,6 +48,7 @@ Plays Player 2 in vs Computer mode, using Monte Carlo tree search (`go-engine.ts
 
 - **Search.** Each iteration walks down a tree of candidate moves, adds one new node, then finishes the game with a fast random playout, and records who won by area. Moves are chosen in the tree by UCT combined with RAVE (a move also gets credit when it is played later in the same playout), which learns quickly from few playouts. The most-visited root move is played.
 - **Playouts** use a light policy: capture the stone just played if it is in atari, save its own groups put in atari by that move, otherwise play a random legal move that neither fills its own eye nor puts itself in atari. Playouts use simple ko and no superko; the root moves are checked against the full rules (superko).
+- **Candidates.** Moves that fill its own eye are never considered. The move it actually plays is also never a self-atari (leaving its own group with one liberty) unless it captures; deeper in the search self-atari is allowed so sacrifices can be read, while playouts avoid it.
 - **Priors.** New moves start with virtual results from the same tactics: capturing is favored, saving a group in atari next, playing next to the last move slightly, and self-atari is discouraged.
 - **Speed.** A board of typed arrays with liberty scans that stop as soon as the answer is known: about 1,000 playouts per second on a Raspberry Pi 5.
 - **Passing.** It passes when it has no move that is not an own-eye fill, or when the human has just passed and it is ahead by area score.
