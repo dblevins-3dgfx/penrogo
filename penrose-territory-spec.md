@@ -1,19 +1,19 @@
 # Penrogo (Penrose Go): Specification
 
-Status: experimental branch `penrose-go`. Reflects the game as currently implemented (`PenroseTerritoryGame` in `penrose-territory.tsx`, board generation in `penrose-board.ts`, rules and computer players in `go-engine.ts`).
+Status: reflects the game as currently implemented (`PenroseTerritoryGame` in `penrose-territory.tsx`, board generation in `penrose-board.ts`, rules and computer players in `go-engine.ts`).
 
 ## 1. Overview
 
 Go, played on a Penrose tiling of kites and darts. The first move places a single tile anywhere on the board; a complete Penrose tiling is then generated around it. After that, players take turns claiming any empty tile. Groups are captured Go-style when they run out of liberties, and the game is scored by area.
 
-This replaces the original free-placement game (on `main`), where players built the tiling themselves and could easily leave gaps that no tile could fill. Here every empty space is already a valid tile, so untileable gaps cannot occur.
+This replaces the original free-placement game (kept on the `original-game` branch), where players built the tiling themselves and could easily leave gaps that no tile could fill. Here every empty space is already a valid tile, so untileable gaps cannot occur.
 
 ## 2. Technology
 
 | Item | Choice |
 |---|---|
 | Framework | React 19 (functional component, hooks) |
-| Build | Vite, TypeScript (dev server on port 5174 in this worktree; `main` uses 5173) |
+| Build | Vite, TypeScript |
 | Rendering | HTML5 Canvas 2D, 800 x 600 internal resolution, scaled to the largest 4:3 size that fits the window |
 | Styling | Tailwind CSS v4 utility classes |
 | Icons | lucide-react (`RotateCw`, `RotateCcw`, `Play`, `SkipForward`, `CircleHelp`, `X`) |

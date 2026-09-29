@@ -2,7 +2,7 @@
 
 Go, played on a Penrose tiling. Place one kite or dart anywhere and a full Penrose tiling of kites and darts is laid out around it; then take turns claiming tiles, capture groups that run out of liberties, and score by area. Play against another person or the computer.
 
-This is the experimental `penrose-go` branch. The original free-placement game is on `main`.
+The original free-placement version, where players built the tiling themselves, is kept on the [`original-game`](https://github.com/dblevins-3dgfx/penrogo/tree/original-game) branch.
 
 See [penrose-territory-spec.md](penrose-territory-spec.md) for the full rules and design.
 
@@ -15,7 +15,7 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:5174 (this branch uses port 5174 so it can run next to `main` on 5173). The dev server also listens on your local network, so you can play from a phone or tablet at the network address Vite prints.
+Then open http://localhost:5173. The dev server also listens on your local network, so you can play from a phone or tablet at the network address Vite prints.
 
 ## Scripts
 
