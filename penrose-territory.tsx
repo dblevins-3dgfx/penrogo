@@ -1010,6 +1010,47 @@ const PenroseTerritoryGame = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameStarted]);
 
+  // Mouse wheel over the board rotates the tile: up = clockwise. A mouse
+  // wheel notch arrives as one large delta and turns one step. A trackpad
+  // swipe arrives as a stream of small deltas; it turns one step per swipe,
+  // where a swipe ends after a short pause in the stream.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !gameStarted) return;
+
+    const WHEEL_NOTCH = 50;
+    const SWIPE_STEP = 30;
+    const SWIPE_END_MS = 150;
+    const swipe = { total: 0, done: false, timer: null };
+
+    const rotateBy = (dy) => setRotation(prev => (prev + (dy < 0 ? 36 : -36) + 360) % 360);
+
+    const handleWheel = (e) => {
+      e.preventDefault();
+      const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+      if (Math.abs(dy) >= WHEEL_NOTCH) {
+        rotateBy(dy);
+        return;
+      }
+
+      clearTimeout(swipe.timer);
+      swipe.timer = setTimeout(() => { swipe.total = 0; swipe.done = false; }, SWIPE_END_MS);
+      if (swipe.done) return;
+      swipe.total += dy;
+      if (Math.abs(swipe.total) >= SWIPE_STEP) {
+        rotateBy(swipe.total);
+        swipe.done = true;
+      }
+    };
+
+    // Non-passive so preventDefault can stop the page from scrolling
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      canvas.removeEventListener('wheel', handleWheel);
+      clearTimeout(swipe.timer);
+    };
+  }, [gameStarted]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1185,10 +1226,18 @@ const PenroseTerritoryGame = () => {
   // Mouse: click places immediately. Touch: lifting the finger leaves the
   // preview in place so it can be adjusted, and the Place button confirms.
   const handlePointerUp = (e) => {
-    if (!gameStarted || !humanTurn || e.pointerType !== 'mouse') return;
+    if (!gameStarted || !humanTurn || e.pointerType !== 'mouse' || e.button !== 0) return;
     const { x, y } = getCanvasCoords(e);
     const pos = getSnappedPosition(x, y);
     placeTile(pos.x, pos.y);
+  };
+
+  // Right-click rotates clockwise (Shift + right-click counter-clockwise)
+  // instead of opening the browser menu.
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    if (!gameStarted) return;
+    setRotation(prev => (prev + (e.shiftKey ? -36 : 36) + 360) % 360);
   };
 
   const handlePointerLeave = (e) => {
@@ -1289,22 +1338,32 @@ const PenroseTerritoryGame = () => {
                 </button>
               </div>
 
-              <button
-                onClick={() => setRotation((rotation - 36 + 360) % 360)}
-                aria-label="Rotate counter-clockwise"
-                className="bg-slate-700 active:bg-slate-600 text-white px-5 py-3 rounded-lg flex items-center gap-2"
-              >
-                <RotateCw size={22} style={{ transform: 'scaleX(-1)' }} />
-              </button>
+              {isTouchDevice ? (
+                <>
+                  <button
+                    onClick={() => setRotation((rotation - 36 + 360) % 360)}
+                    aria-label="Rotate counter-clockwise"
+                    className="bg-slate-700 active:bg-slate-600 text-white px-5 py-3 rounded-lg flex items-center gap-2"
+                  >
+                    <RotateCw size={22} style={{ transform: 'scaleX(-1)' }} />
+                  </button>
 
-              <button
-                onClick={() => setRotation((rotation + 36) % 360)}
-                aria-label="Rotate clockwise"
-                className="bg-slate-700 active:bg-slate-600 text-white px-5 py-3 rounded-lg flex items-center gap-2"
-              >
-                <RotateCw size={22} />
-                <span className="text-sm">{rotation}°</span>
-              </button>
+                  <button
+                    onClick={() => setRotation((rotation + 36) % 360)}
+                    aria-label="Rotate clockwise"
+                    className="bg-slate-700 active:bg-slate-600 text-white px-5 py-3 rounded-lg flex items-center gap-2"
+                  >
+                    <RotateCw size={22} />
+                    <span className="text-sm">{rotation}°</span>
+                  </button>
+                </>
+              ) : (
+                <div className="text-slate-300 text-sm flex items-center gap-2">
+                  <RotateCw size={18} />
+                  <span>Rotate: scroll wheel, right-click, or ←/→</span>
+                  <span className="text-white font-semibold w-10">{rotation}°</span>
+                </div>
+              )}
 
               {isTouchDevice && (
                 <button
@@ -1366,6 +1425,7 @@ const PenroseTerritoryGame = () => {
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerLeave}
+            onContextMenu={handleContextMenu}
             style={{ touchAction: 'none' }}
             className="w-full h-auto bg-white rounded cursor-crosshair"
           />
@@ -1376,7 +1436,11 @@ const PenroseTerritoryGame = () => {
           <ul className="list-disc list-inside mt-2 space-y-1">
             <li>Choose 2 Players or vs Computer (the computer plays red), then press Start</li>
             <li>Player 1 places the first tile anywhere; then players alternate placing kite or dart tiles edge-to-edge</li>
-            <li>Rotate with the buttons or Left/Right arrow keys (36° steps)</li>
+            <li>
+              {isTouchDevice
+                ? 'Rotate with the buttons (36° steps)'
+                : 'Rotate with the scroll wheel over the board, right-click (Shift + right-click for the other way), or Left/Right arrow keys (36° steps)'}
+            </li>
             <li>Green preview outline = valid Penrose-matched placement; red dashed = blocked</li>
             <li>Surround an area completely and it is yours: enemy tiles inside flip to your color</li>
             <li>Empty space you fully enclose is tinted as your territory; opponents can't build there</li>

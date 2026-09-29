@@ -134,8 +134,10 @@ It looks one move ahead only, so it will not anticipate an opponent's capture on
 |---|---|
 | Mouse move | Move the preview (snaps to legal edges) |
 | Left click | Place the tile |
+| Scroll wheel over the board | Rotate 36 deg: up = clockwise, down = counter-clockwise. One step per wheel notch, or one per trackpad swipe (a swipe ends after a 150 ms pause). The page does not scroll while the pointer is over the board |
+| Right click | Rotate 36 deg clockwise (Shift + right click: counter-clockwise); the browser menu is suppressed on the board |
 | Left / Right arrow | Rotate 36 deg counter-clockwise / clockwise |
-| Rotate buttons | Same as arrows |
+| Rotation hint | Replaces the rotate buttons: lists the rotation controls and shows the current angle |
 | Kite / Dart buttons | Choose tile type |
 
 ### Touch (iPhone and other touch devices)
@@ -145,7 +147,7 @@ It looks one move ahead only, so it will not anticipate an opponent's capture on
 | Touch and drag on board | Move the preview, lifted 60 canvas units above the fingertip |
 | Lift finger | Preview stays in place (adjustable) |
 | **Place** button | Confirm placement; disabled while the preview is illegal |
-| Rotate buttons | Large tap targets, clockwise button also shows current angle |
+| Rotate buttons | Large tap targets, clockwise button also shows current angle. Shown only on touch devices (`navigator.maxTouchPoints > 0`); desktop gets the rotation hint instead |
 
 Implementation notes: pointer events (`pointerdown/move/up/leave`), `touch-action: none` on the canvas, and pointer coordinates scaled from CSS pixels to the 800 x 600 canvas space. The page scrolls (`min-h-screen`) rather than locking to one screen height.
 
