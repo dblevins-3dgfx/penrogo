@@ -33,5 +33,5 @@ Then open http://localhost:5173. The dev server also listens on your local netwo
 - `ai-worker.ts`: runs the computer's search in a Web Worker
 - `penrose-board.ts`: Penrose tiling generation and the tile adjacency graph
 - `skins.ts`: visual skins (Plain Jane, Dazzle): page colors and how the board is drawn
-- `dazzle-effects.ts`: Dazzle's animations (board cascade, gem pop, capture shatter, glints) on an overlay canvas
+- `dazzle-effects.ts`: Dazzle's animations (board cascade, gem pop, capture shatter, glints, pulsing last move, floating preview) on an overlay canvas
 - `src/main.tsx`, `src/index.css`, `index.html`: Vite entry point and Tailwind setup

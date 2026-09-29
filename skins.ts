@@ -174,7 +174,7 @@ export const drawSparkle = (ctx, x, y, size, color) => {
 
 // A faceted gem filling the tile: a smaller "table" facet in the middle,
 // and one side facet per edge, each shaded by how much it faces the light.
-const drawGem = (ctx, verts, player, alpha = 1) => {
+export const drawGem = (ctx, verts, player, alpha = 1) => {
   const gem = GEMS[player];
   const c = centroidOf(verts);
   const inner = verts.map(v => ({ x: c.x + (v.x - c.x) * 0.5, y: c.y + (v.y - c.y) * 0.5 }));

@@ -187,6 +187,11 @@ const PenroseTerritoryGame = () => {
     effectsRef.current.setBoard(tiles, stones);
   }, [board, stones]);
 
+  useEffect(() => {
+    const show = effectsOn && board && lastMove !== null && stones[lastMove];
+    effectsRef.current.setLastMove(show ? tiles[lastMove].verts : null);
+  }, [effectsOn, board, stones, lastMove]);
+
   // Live score is stones on the board; at the end it is area (stones plus
   // surrounded empty tiles).
   const stoneCount = useMemo(() => {
@@ -417,11 +422,13 @@ const PenroseTerritoryGame = () => {
       tiles.forEach((t, i) => {
         skin.drawTile(ctx, t.verts, { stone: stones[i], territory: territory ? territory[i] : 0 });
       });
-      if (lastMove !== null && stones[lastMove]) skin.drawLastMove(ctx, tiles[lastMove].verts);
+      // With effects on, the overlay animates the last move instead
+      if (lastMove !== null && stones[lastMove] && !effectsOn) skin.drawLastMove(ctx, tiles[lastMove].verts);
     }
 
     if (target) {
-      skin.drawTarget(ctx, target.verts, currentPlayer, target.legal);
+      // With effects on, the overlay floats a legal preview instead
+      if (!(effectsOn && target.legal)) skin.drawTarget(ctx, target.verts, currentPlayer, target.legal);
 
       // Red border while the opening tile would stick out of the board
       if (target.kind === 'opening' && !target.legal) {
@@ -432,7 +439,12 @@ const PenroseTerritoryGame = () => {
         ctx.restore();
       }
     }
-  }, [board, stones, lastMove, gameOver, target, currentPlayer, skin]);
+  }, [board, stones, lastMove, gameOver, target, currentPlayer, skin, effectsOn]);
+
+  useEffect(() => {
+    const show = effectsOn && target && target.legal;
+    effectsRef.current.setTarget(show ? { verts: target.verts, player: currentPlayer } : null);
+  }, [effectsOn, target, currentPlayer]);
 
   // Touch devices have no hover, so the preview follows a finger drag and
   // is lifted above the fingertip so it isn't hidden under it.

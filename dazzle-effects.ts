@@ -9,10 +9,18 @@
 //   cascade(tiles, originVerts)           a new board appears in a wave
 //                                         spreading from the opening tile
 //   setBoard(tiles, stones)               stones that may glint when idle
+//   setLastMove(verts)                    last move: breathing glow and
+//                                         twinkling, circling sparkles
+//   setTarget({ verts, player })          hover preview: a translucent gem
+//                                         floating and bobbing over its
+//                                         socket, with a recurring shimmer
+//
+// The last move and the preview are persistent: while either is shown the
+// loop keeps running, capped at PERSISTENT_FPS when nothing else moves.
 
 import {
   GEMS, LIGHT, BG_SPARKLES, centroidOf, tracePolygon, drawSparkle,
-  drawDazzleBackground, mix, rgb
+  drawDazzleBackground, drawGem, mix, rgb
 } from './skins';
 
 const POP_MS = 320;
@@ -25,6 +33,10 @@ const TWINKLE_MS = 900;
 const IDLE_MIN_MS = 1200;
 const IDLE_MAX_MS = 2800;
 const GRAVITY = 320; // px/s², pulls shards and sparkles down
+const PULSE_MS = 1600; // last move breathing period
+const BOB_MS = 1400; // preview float period
+const SHIMMER_MS = 1800; // preview shimmer repeat
+const PERSISTENT_FPS = 30;
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -45,11 +57,15 @@ export class DazzleEffects {
   idleTimer = 0;
   stoneVerts = [];
   freeSparkles = BG_SPARKLES;
+  lastMove = null;
+  target = null;
+  lastFrame = 0;
 
   attach(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.scheduleIdle();
+    this.kick();
   }
 
   detach() {
@@ -57,6 +73,8 @@ export class DazzleEffects {
     clearTimeout(this.idleTimer);
     this.raf = 0;
     this.effects = [];
+    this.lastMove = null;
+    this.target = null;
     if (this.ctx) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.canvas = null;
     this.ctx = null;
@@ -73,6 +91,16 @@ export class DazzleEffects {
     }
     this.stoneVerts = tiles.filter((t, i) => stones[i]).map(t => t.verts);
     this.freeSparkles = BG_SPARKLES.filter(s => !tiles.some(t => pointInPolygon(s.x, s.y, t.verts)));
+  }
+
+  setLastMove(verts) {
+    this.lastMove = verts;
+    this.kick();
+  }
+
+  setTarget(target) {
+    this.target = target;
+    this.kick();
   }
 
   place(verts, player) {
@@ -138,7 +166,9 @@ export class DazzleEffects {
   }
 
   kick() {
-    if (!this.raf && this.ctx) this.raf = requestAnimationFrame(this.frame);
+    if (!this.raf && this.ctx && (this.effects.length || this.lastMove || this.target)) {
+      this.raf = requestAnimationFrame(this.frame);
+    }
   }
 
   scheduleIdle() {
@@ -161,6 +191,13 @@ export class DazzleEffects {
     const { ctx, canvas } = this;
     this.raf = 0;
     if (!ctx) return;
+
+    // With only the persistent effects showing, redraw at a lower rate
+    if (!this.effects.length && now - this.lastFrame < 1000 / PERSISTENT_FPS) {
+      this.raf = requestAnimationFrame(this.frame);
+      return;
+    }
+    this.lastFrame = now;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Cascades first: they mask tiles that haven't appeared yet
@@ -184,9 +221,61 @@ export class DazzleEffects {
       }
     });
 
-    if (this.effects.length) this.raf = requestAnimationFrame(this.frame);
+    if (this.lastMove) this.drawLastMovePulse(now);
+    if (this.target) this.drawFloatingTarget(now);
+
+    if (this.effects.length || this.lastMove || this.target) this.raf = requestAnimationFrame(this.frame);
     else ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
+
+  // Breathing gold glow, a twinkling sparkle and a smaller one circling
+  drawLastMovePulse(now) {
+    const { ctx } = this;
+    const verts = this.lastMove;
+    const p = (Math.sin((now / PULSE_MS) * Math.PI * 2) + 1) / 2; // 0..1
+    ctx.save();
+    tracePolygon(ctx, verts);
+    ctx.shadowColor = '#fde68a';
+    ctx.shadowBlur = 8 + 14 * p;
+    ctx.strokeStyle = `rgba(253, 230, 138, ${0.55 + 0.45 * p})`;
+    ctx.lineWidth = 2 + 1.5 * p;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.restore();
+    const c = centroidOf(verts);
+    drawSparkle(ctx, c.x + 5, c.y - 4, 6 + 4 * p, 'rgba(255, 255, 255, 0.95)');
+    const a = (now / 2400) * Math.PI * 2;
+    drawSparkle(ctx, c.x + Math.cos(a) * 11, c.y + Math.sin(a) * 8, 2.5 + 2 * (1 - p), 'rgba(253, 230, 138, 0.9)');
+  }
+
+  // The preview gem lifted off its socket: a soft shadow below, a gentle
+  // bob, a glowing outline and a shimmer that sweeps across now and then
+  drawFloatingTarget(now) {
+    const { ctx } = this;
+    const { verts, player } = this.target;
+    const lift = 3 + 1.5 * Math.sin((now / BOB_MS) * Math.PI * 2);
+    ctx.save();
+    tracePolygon(ctx, verts);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+    ctx.shadowBlur = 6 + lift;
+    ctx.fill();
+    ctx.restore();
+
+    const lifted = verts.map(v => ({ x: v.x, y: v.y - lift }));
+    drawGem(ctx, lifted, player, 0.7);
+    ctx.save();
+    tracePolygon(ctx, lifted);
+    ctx.shadowColor = GEMS[player].glow;
+    ctx.shadowBlur = 12;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+
+    const k = (now % SHIMMER_MS) / GLINT_MS;
+    if (k < 1) this.drawGlint({ verts: lifted }, k * GLINT_MS);
+  }
 
   drawCascade(e, t) {
     const { ctx, canvas } = this;
