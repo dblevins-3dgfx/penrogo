@@ -1,6 +1,8 @@
 # Penrogo
 
-Penrose tiling meets Go: a two-player territory game played with Penrose kite and dart tiles. Place tiles edge-to-edge under Penrose's matching rules, surround areas to capture them, and outscore your opponent. Play against another person or the computer.
+Go, played on a Penrose tiling. Place one kite or dart anywhere and a full Penrose tiling of kites and darts is laid out around it; then take turns claiming tiles, capture groups that run out of liberties, and score by area. Play against another person or the computer.
+
+This is the experimental `penrose-go` branch. The original free-placement game is on `main`.
 
 See [penrose-territory-spec.md](penrose-territory-spec.md) for the full rules and design.
 
@@ -13,7 +15,7 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:5173. The dev server also listens on your local network, so you can play from a phone or tablet at the network address Vite prints.
+Then open http://localhost:5174 (this branch uses port 5174 so it can run next to `main` on 5173). The dev server also listens on your local network, so you can play from a phone or tablet at the network address Vite prints.
 
 ## Scripts
 
@@ -22,9 +24,10 @@ Then open http://localhost:5173. The dev server also listens on your local netwo
 | `npm run dev` | Start the dev server with hot reload |
 | `npm run build` | Build for production into `dist/` |
 | `npm run preview` | Serve the production build |
-| `npm run typecheck` | Run the TypeScript checker (currently reports one error; the component is untyped) |
+| `npm run typecheck` | Run the TypeScript checker |
 
 ## Layout
 
-- `penrose-territory.tsx`: the whole game, a single React component
+- `penrose-territory.tsx`: the game, a single React component (rules, computer opponent, drawing, controls)
+- `penrose-board.ts`: Penrose tiling generation and the tile adjacency graph
 - `src/main.tsx`, `src/index.css`, `index.html`: Vite entry point and Tailwind setup

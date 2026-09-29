@@ -1,35 +1,20 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { RotateCw, Play, SkipForward, RotateCcw, CircleHelp, X } from 'lucide-react';
+import { buildBoard } from './penrose-board';
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 const TILE_SIZE = 60;
-const VERTEX_EPS = 4;
 
-// Edge length labels walking the perimeter from vertex i to vertex i+1.
-// Both kite and dart share this long/short/short/long pattern.
-const EDGE_LENGTHS = ['long', 'short', 'short', 'long'];
+// Playfield size (matches the canvas).
+const BOARD_W = 800;
+const BOARD_H = 600;
 
-// Penrose's actual matching rule (vertex 2-coloring): whenever a point is
-// a vertex of more than one tile, it must be the same color on every tile
-// touching it. Colors follow vertex order [O,B,C,D] for the kite and
-// [M,N,A',N'] for the dart:
-// Kite: axis vertices (O at 72°, C at 144°) = black; off-axis (B,D) = white.
-// Dart: axis vertices (M at 72°, A' at 216°) = white; off-axis (N,N') = black.
-const KITE_VERTEX_COLORS = ['black', 'white', 'black', 'white'];
-const DART_VERTEX_COLORS = ['white', 'black', 'white', 'black'];
+// ---------------------------------------------------------------------
+// Tile geometry (used for the opening tile, which decides the board)
+// ---------------------------------------------------------------------
 
-const normalize = (dx, dy) => {
-  const len = Math.sqrt(dx * dx + dy * dy) || 1;
-  return { x: dx / len, y: dy / len };
-};
-
-const samePoint = (p, q) =>
-  Math.abs(p.x - q.x) < VERTEX_EPS && Math.abs(p.y - q.y) < VERTEX_EPS;
-
-// Kite: verified via law-of-cosines closure check.
-// Vertices O(72°) -> B(72°) -> C(144°) -> D(72°), edges: long,short,short,long
-// Axis of symmetry passes through O and C. Centered on centroid so the
-// shape is anchored under the cursor/placement point, not by vertex O.
+// Kite: vertices O(72°) -> B(72°) -> C(144°) -> D(72°), edges long, short,
+// short, long. Axis of symmetry through O and C. Centered on the centroid.
 const getKiteVertices = (x, y, rotation) => {
   const r = rotation * Math.PI / 180;
   const long = TILE_SIZE;
@@ -48,10 +33,8 @@ const getKiteVertices = (x, y, rotation) => {
   return local.map(v => ({ x: x + v.x - cx, y: y + v.y - cy }));
 };
 
-// Dart: verified via law-of-cosines closure check.
-// Vertices M(72°) -> N(36°) -> A'(216°, reflex) -> N'(36°), edges: long,short,short,long
-// Axis of symmetry passes through M and A'. Centered on centroid so the
-// shape is anchored under the cursor/placement point, not by vertex M.
+// Dart: vertices M(72°) -> N(36°) -> A'(216°, reflex) -> N'(36°), edges
+// long, short, short, long. Axis of symmetry through M and A'.
 const getDartVertices = (x, y, rotation) => {
   const r = rotation * Math.PI / 180;
   const long = TILE_SIZE;
@@ -70,444 +53,28 @@ const getDartVertices = (x, y, rotation) => {
   return local.map(v => ({ x: x + v.x - cx, y: y + v.y - cy }));
 };
 
-// Returns this tile's polygon vertices, dispatching on its type.
 const getVertices = (tile) => tile.type === 'kite'
   ? getKiteVertices(tile.x, tile.y, tile.rotation)
   : getDartVertices(tile.x, tile.y, tile.rotation);
-
-const getVertexColors = (tile) =>
-  tile.type === 'kite' ? KITE_VERTEX_COLORS : DART_VERTEX_COLORS;
-
-// Checks a candidate tile against all placed tiles: does it touch the
-// existing structure at all, and does every coincident vertex agree in
-// Penrose color with every tile it touches there? (Edge-length mismatches
-// are already ruled out by checkEdgeContact's T-junction test.)
-const checkVertexMatching = (candidate, allTiles) => {
-  const cVerts = getVertices(candidate);
-  const cColors = getVertexColors(candidate);
-  let touches = false;
-  let colorsMatch = true;
-
-  for (const tile of allTiles) {
-    const tVerts = getVertices(tile);
-    const tColors = getVertexColors(tile);
-    for (let i = 0; i < 4; i++) {
-      for (let j = 0; j < 4; j++) {
-        if (samePoint(cVerts[i], tVerts[j])) {
-          touches = true;
-          if (cColors[i] !== tColors[j]) colorsMatch = false;
-        }
-      }
-    }
-  }
-  return { touches, colorsMatch };
-};
-
-// Finds every edge shared between two placed tiles (both endpoints
-// coincide) where the Penrose vertex colors also agree at both ends -
-// i.e. genuinely valid connections, not just geometric proximity.
-const findConnectedEdges = (allTiles) => {
-  const connected = [];
-
-  for (let i = 0; i < allTiles.length; i++) {
-    const vi = getVertices(allTiles[i]);
-    const ci = getVertexColors(allTiles[i]);
-    for (let j = i + 1; j < allTiles.length; j++) {
-      const vj = getVertices(allTiles[j]);
-      const cj = getVertexColors(allTiles[j]);
-      for (let a = 0; a < 4; a++) {
-        const a1 = vi[a], a2 = vi[(a + 1) % 4];
-        const ca1 = ci[a], ca2 = ci[(a + 1) % 4];
-        for (let b = 0; b < 4; b++) {
-          const b1 = vj[b], b2 = vj[(b + 1) % 4];
-          const cb1 = cj[b], cb2 = cj[(b + 1) % 4];
-          const forward = samePoint(a1, b1) && samePoint(a2, b2) && ca1 === cb1 && ca2 === cb2;
-          const reverse = samePoint(a1, b2) && samePoint(a2, b1) && ca1 === cb2 && ca2 === cb1;
-          if (forward || reverse) {
-            connected.push({ x1: a1.x, y1: a1.y, x2: a2.x, y2: a2.y });
-          }
-        }
-      }
-    }
-  }
-  return connected;
-};
-
-// True if point p lies on the interior of segment a-b (not at an endpoint).
-const pointOnEdgeInterior = (p, a, b) => {
-  const abx = b.x - a.x, aby = b.y - a.y;
-  const len2 = abx * abx + aby * aby || 1;
-  const t = ((p.x - a.x) * abx + (p.y - a.y) * aby) / len2;
-  if (t <= 0 || t >= 1) return false;
-  const px = a.x + t * abx, py = a.y + t * aby;
-  if (Math.hypot(p.x - px, p.y - py) > VERTEX_EPS) return false;
-  return !samePoint(p, a) && !samePoint(p, b);
-};
-
-// Penrose kite/dart tilings are edge-to-edge. A candidate must share at
-// least one full edge with an existing tile (a single-vertex contact is not
-// enough), and no corner may land in the middle of another tile's edge
-// (a T-junction), in either direction.
-const checkEdgeContact = (candidate, allTiles) => {
-  const cv = getVertices(candidate);
-  let sharesEdge = false;
-  let tJunction = false;
-
-  for (const tile of allTiles) {
-    const tv = getVertices(tile);
-
-    for (let a = 0; a < 4; a++) {
-      const a1 = cv[a], a2 = cv[(a + 1) % 4];
-      for (let b = 0; b < 4; b++) {
-        const b1 = tv[b], b2 = tv[(b + 1) % 4];
-        if ((samePoint(a1, b1) && samePoint(a2, b2)) ||
-            (samePoint(a1, b2) && samePoint(a2, b1))) {
-          sharesEdge = true;
-        }
-      }
-    }
-
-    for (const p of cv) {
-      for (let b = 0; b < 4; b++) {
-        if (pointOnEdgeInterior(p, tv[b], tv[(b + 1) % 4])) tJunction = true;
-      }
-    }
-    for (const p of tv) {
-      for (let a = 0; a < 4; a++) {
-        if (pointOnEdgeInterior(p, cv[a], cv[(a + 1) % 4])) tJunction = true;
-      }
-    }
-  }
-  return { sharesEdge, tJunction };
-};
 
 const centroidOf = (verts) => ({
   x: verts.reduce((s, v) => s + v.x, 0) / verts.length,
   y: verts.reduce((s, v) => s + v.y, 0) / verts.length
 });
 
-// Separating-axis test for two triangles. Shapes that merely touch (or
-// overlap by less than `tol` pixels) are NOT considered overlapping, so
-// tiles sharing an edge or vertex are fine.
-const trianglesOverlap = (t1, t2, tol) => {
-  for (const tri of [t1, t2]) {
-    for (let i = 0; i < 3; i++) {
-      const p = tri[i], q = tri[(i + 1) % 3];
-      const n = normalize(-(q.y - p.y), q.x - p.x);
-      let min1 = Infinity, max1 = -Infinity, min2 = Infinity, max2 = -Infinity;
-      for (const v of t1) {
-        const d = v.x * n.x + v.y * n.y;
-        min1 = Math.min(min1, d); max1 = Math.max(max1, d);
-      }
-      for (const v of t2) {
-        const d = v.x * n.x + v.y * n.y;
-        min2 = Math.min(min2, d); max2 = Math.max(max2, d);
-      }
-      if (max1 <= min2 + tol || max2 <= min1 + tol) return false;
-    }
-  }
-  return true;
-};
-
-// Both the kite and the dart split cleanly into two triangles along the
-// diagonal from vertex 0 to vertex 2 (their axis of symmetry), which also
-// handles the dart's concave notch correctly.
+// Both tiles split into two triangles along the vertex 0 to 2 diagonal
+// (the axis), which also handles the dart's concave notch.
 const toTriangles = (v) => [[v[0], v[1], v[2]], [v[0], v[2], v[3]]];
 
-const tilesOverlap = (vertsA, vertsB) => {
-  for (const ta of toTriangles(vertsA)) {
-    for (const tb of toTriangles(vertsB)) {
-      if (trianglesOverlap(ta, tb, 1.5)) return true;
-    }
-  }
-  return false;
-};
-
-// ---------------------------------------------------------------------
-// Capture and territory
-//
-// The board is rasterized onto a coarse grid (CELL px per cell). Each cell
-// records which player's tile covers it (0 = empty space). Enclosure is then
-// a flood fill, Go-style:
-//   - Capture: for player X, flood outward from beyond the structure through
-//     every cell NOT covered by X. Any opponent tile the flood never reaches
-//     is completely walled in by X and is captured.
-//   - Territory: empty space the outside flood can't reach is a hole. If
-//     every tile bordering the hole belongs to one player, it is theirs.
-//
-// Scoring: 1 point per tile owned (kite and dart alike), plus each owned
-// hole in tile-equivalents: a hole with n real corners triangulates into
-// n - 2 triangles, and a tile is two triangles, so it is worth (n - 2) / 2.
-// ---------------------------------------------------------------------
-const CELL = 3;
-
-// Inside test with a small tolerance so adjacent tiles leave no cracks.
-const pointInTriangle = (px, py, tri, tol) => {
+const pointInTriangle = (px, py, tri) => {
   const [a, b, c] = tri;
-  const area2 = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-  const sgn = area2 >= 0 ? 1 : -1;
-  const edges = [[a, b], [b, c], [c, a]];
-  for (const [p, q] of edges) {
-    const ex = q.x - p.x, ey = q.y - p.y;
-    const len = Math.hypot(ex, ey) || 1;
-    const d = sgn * (ex * (py - p.y) - ey * (px - p.x)) / len;
-    if (d < -tol) return false;
-  }
-  return true;
+  const d1 = (px - b.x) * (a.y - b.y) - (a.x - b.x) * (py - b.y);
+  const d2 = (px - c.x) * (b.y - c.y) - (b.x - c.x) * (py - c.y);
+  const d3 = (px - a.x) * (c.y - a.y) - (c.x - a.x) * (py - a.y);
+  const neg = d1 < 0 || d2 < 0 || d3 < 0;
+  const pos = d1 > 0 || d2 > 0 || d3 > 0;
+  return !(neg && pos);
 };
-
-const buildGrid = (allTiles) => {
-  const vertsList = allTiles.map(getVertices);
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const vs of vertsList) {
-    for (const v of vs) {
-      minX = Math.min(minX, v.x); maxX = Math.max(maxX, v.x);
-      minY = Math.min(minY, v.y); maxY = Math.max(maxY, v.y);
-    }
-  }
-  // Padding guarantees cell 0 (the corner) is always empty outside space.
-  const pad = 3 * CELL;
-  const x0 = Math.floor((minX - pad) / CELL) * CELL;
-  const y0 = Math.floor((minY - pad) / CELL) * CELL;
-  const w = Math.ceil((maxX + pad - x0) / CELL) + 1;
-  const h = Math.ceil((maxY + pad - y0) / CELL) + 1;
-
-  const owner = new Uint8Array(w * h);
-  const tileAt = new Int16Array(w * h).fill(-1);
-
-  allTiles.forEach((tile, t) => {
-    const vs = vertsList[t];
-    const tris = toTriangles(vs);
-    const bx0 = Math.max(0, Math.floor((Math.min(...vs.map(v => v.x)) - x0) / CELL) - 1);
-    const bx1 = Math.min(w - 1, Math.ceil((Math.max(...vs.map(v => v.x)) - x0) / CELL) + 1);
-    const by0 = Math.max(0, Math.floor((Math.min(...vs.map(v => v.y)) - y0) / CELL) - 1);
-    const by1 = Math.min(h - 1, Math.ceil((Math.max(...vs.map(v => v.y)) - y0) / CELL) + 1);
-
-    for (let j = by0; j <= by1; j++) {
-      for (let i = bx0; i <= bx1; i++) {
-        const cx = x0 + (i + 0.5) * CELL;
-        const cy = y0 + (j + 0.5) * CELL;
-        if (tris.some(tr => pointInTriangle(cx, cy, tr, 0.75))) {
-          owner[j * w + i] = tile.player;
-          tileAt[j * w + i] = t;
-        }
-      }
-    }
-  });
-
-  return { x0, y0, w, h, owner, tileAt };
-};
-
-// 4-connected flood fill from the corner cell through passable cells.
-const floodFromCorner = (g, passable) => {
-  const { w, h, owner } = g;
-  const seen = new Uint8Array(w * h);
-  const stack = [0];
-  seen[0] = 1;
-  const push = (n) => {
-    if (!seen[n] && passable(owner[n])) {
-      seen[n] = 1;
-      stack.push(n);
-    }
-  };
-  while (stack.length) {
-    const idx = stack.pop();
-    const x = idx % w, y = (idx / w) | 0;
-    if (x > 0) push(idx - 1);
-    if (x < w - 1) push(idx + 1);
-    if (y > 0) push(idx - w);
-    if (y < h - 1) push(idx + w);
-  }
-  return seen;
-};
-
-// Indices of tiles owned by the opponent of `capturer` that are completely
-// walled in by `capturer`'s tiles (no path to the outside).
-const findCaptured = (allTiles, capturer) => {
-  const g = buildGrid(allTiles);
-  const reach = floodFromCorner(g, (o) => o !== capturer);
-  const hasCells = new Uint8Array(allTiles.length);
-  const free = new Uint8Array(allTiles.length);
-
-  for (let i = 0; i < g.tileAt.length; i++) {
-    const t = g.tileAt[i];
-    if (t < 0) continue;
-    hasCells[t] = 1;
-    if (reach[i]) free[t] = 1;
-  }
-
-  const ids = [];
-  allTiles.forEach((tile, t) => {
-    if (tile.player !== capturer && hasCells[t] && !free[t]) ids.push(t);
-  });
-  return ids;
-};
-
-// Applies captures after a move: the mover first, then the opponent (so a
-// move that walls in the mover's own tiles counts against them). Repeats
-// until stable, since a capture can complete another enclosure.
-const resolveCaptures = (allTiles, mover) => {
-  let current = allTiles;
-  const captured = { 1: 0, 2: 0 };
-
-  for (const capturer of [mover, mover === 1 ? 2 : 1]) {
-    for (let iter = 0; iter < 10; iter++) {
-      const ids = findCaptured(current, capturer);
-      if (ids.length === 0) break;
-      current = current.map((t, i) => (ids.includes(i) ? { ...t, player: capturer } : t));
-      captured[capturer] += ids.length;
-    }
-  }
-  return { tiles: current, captured };
-};
-
-// Number of real corners on a hole's boundary, from the tile edges that
-// border it. Points where two boundary edges run in a straight line are not
-// corners. (A point where the boundary touches itself counts as two.)
-const countHoleCorners = (edges) => {
-  const pts = [];
-  const dirs = [];
-  const indexOf = (p) => {
-    let i = pts.findIndex(q => samePoint(p, q));
-    if (i < 0) {
-      pts.push(p);
-      dirs.push([]);
-      i = pts.length - 1;
-    }
-    return i;
-  };
-
-  for (const [a, b] of edges) {
-    const ia = indexOf(a);
-    const ib = indexOf(b);
-    dirs[ia].push(normalize(b.x - a.x, b.y - a.y));
-    dirs[ib].push(normalize(a.x - b.x, a.y - b.y));
-  }
-
-  let corners = 0;
-  for (const d of dirs) {
-    if (d.length === 2) {
-      if (d[0].x * d[1].x + d[0].y * d[1].y > -0.999) corners += 1;
-    } else {
-      corners += Math.floor(d.length / 2);
-    }
-  }
-  return corners;
-};
-
-// Enclosed empty holes, who owns them (bordered by one player only), and
-// each player's territory score in tile-equivalents.
-const computeTerritory = (allTiles) => {
-  if (!allTiles.length) return null;
-  const g = buildGrid(allTiles);
-  const { x0, y0, w, h, owner } = g;
-  const outside = floodFromCorner(g, (o) => o === 0);
-  const holeOwner = new Uint8Array(w * h);
-  const holeId = new Int16Array(w * h);
-  const visited = new Uint8Array(w * h);
-  const holes = [];
-
-  for (let s = 0; s < w * h; s++) {
-    if (owner[s] !== 0 || outside[s] || visited[s]) continue;
-
-    const cells = [s];
-    visited[s] = 1;
-    const borderOwners = new Set();
-
-    for (let k = 0; k < cells.length; k++) {
-      const idx = cells[k];
-      const x = idx % w, y = (idx / w) | 0;
-      const neighbors = [];
-      if (x > 0) neighbors.push(idx - 1);
-      if (x < w - 1) neighbors.push(idx + 1);
-      if (y > 0) neighbors.push(idx - w);
-      if (y < h - 1) neighbors.push(idx + w);
-      for (const n of neighbors) {
-        if (owner[n] === 0) {
-          if (!visited[n]) { visited[n] = 1; cells.push(n); }
-        } else {
-          borderOwners.add(owner[n]);
-        }
-      }
-    }
-
-    if (borderOwners.size === 1) {
-      const p = [...borderOwners][0];
-      holes.push({ owner: p, edges: [] });
-      const id = holes.length; // ids start at 1
-      for (const c of cells) {
-        holeOwner[c] = p;
-        holeId[c] = id;
-      }
-    }
-  }
-
-  // Attach each unshared tile edge to the hole it borders by sampling a
-  // point just outside the edge, then score each hole from its corners.
-  const holeScore = { 1: 0, 2: 0 };
-  if (holes.length) {
-    const vertsList = allTiles.map(getVertices);
-    vertsList.forEach((vs, t) => {
-      const c = centroidOf(vs);
-      for (let e = 0; e < 4; e++) {
-        const a = vs[e], b = vs[(e + 1) % 4];
-        const shared = vertsList.some((os, j) => j !== t && os.some((p, k) => {
-          const q = os[(k + 1) % 4];
-          return (samePoint(a, p) && samePoint(b, q)) || (samePoint(a, q) && samePoint(b, p));
-        }));
-        if (shared) continue;
-
-        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-        let n = normalize(-(b.y - a.y), b.x - a.x);
-        if (n.x * (mx - c.x) + n.y * (my - c.y) < 0) n = { x: -n.x, y: -n.y };
-
-        const i = Math.floor((mx + n.x * 4 - x0) / CELL);
-        const j = Math.floor((my + n.y * 4 - y0) / CELL);
-        if (i < 0 || j < 0 || i >= w || j >= h) continue;
-        const id = holeId[j * w + i];
-        if (id > 0) holes[id - 1].edges.push([a, b]);
-      }
-    });
-
-    for (const hole of holes) {
-      const corners = countHoleCorners(hole.edges);
-      holeScore[hole.owner] += Math.max(0, (corners - 2) / 2);
-    }
-  }
-
-  return { ...g, holeOwner, holeScore };
-};
-
-const holeOwnerAt = (terr, x, y) => {
-  if (!terr) return 0;
-  const i = Math.floor((x - terr.x0) / CELL);
-  const j = Math.floor((y - terr.y0) / CELL);
-  if (i < 0 || j < 0 || i >= terr.w || j >= terr.h) return 0;
-  return terr.holeOwner[j * terr.w + i];
-};
-
-// Does a tile polygon cover any part of the territory owned by `owner`?
-const overlapsTerritory = (terr, verts, owner) => {
-  if (!terr) return false;
-  for (const tri of toTriangles(verts)) {
-    const xs = tri.map(p => p.x), ys = tri.map(p => p.y);
-    const maxX = Math.max(...xs), maxY = Math.max(...ys);
-    for (let cx = Math.floor(Math.min(...xs) / CELL) * CELL + CELL / 2; cx <= maxX; cx += CELL) {
-      for (let cy = Math.floor(Math.min(...ys) / CELL) * CELL + CELL / 2; cy <= maxY; cy += CELL) {
-        if (pointInTriangle(cx, cy, tri, 0) && holeOwnerAt(terr, cx, cy) === owner) return true;
-      }
-    }
-  }
-  return false;
-};
-
-// ---------------------------------------------------------------------
-// Placement rules (shared by the human player and the computer)
-// ---------------------------------------------------------------------
-
-// Playfield size (matches the canvas). Every tile vertex must stay inside it.
-const BOARD_W = 800;
-const BOARD_H = 600;
 
 // True if any vertex lies outside the playfield (small rounding tolerance).
 const isOutsidePlayfield = (verts) => {
@@ -518,186 +85,239 @@ const isOutsidePlayfield = (verts) => {
   );
 };
 
-// Is `candidate` ({type, x, y, rotation}) a legal placement for `player`?
-// `ignoreBounds` skips only the playfield test; it lets the preview show a
-// snapped position that is blocked solely for being out of bounds.
-const isLegalPlacement = (allTiles, terr, candidate, player, ignoreBounds = false) => {
-  const candVerts = getVertices(candidate);
+// Index of the board tile containing (x, y), or -1.
+const tileAtPoint = (tiles, x, y) =>
+  tiles.findIndex(t => toTriangles(t.verts).some(tri => pointInTriangle(x, y, tri)));
 
-  // Keep every vertex inside the playfield
-  if (!ignoreBounds && isOutsidePlayfield(candVerts)) return false;
+// ---------------------------------------------------------------------
+// Go rules on the tile graph
+//
+// The board is a Penrose tiling generated around the opening tile. Tiles
+// are the points of a Go board: two tiles are adjacent when they share an
+// edge (interior tiles have exactly four neighbors). `stones[i]` is 0 for
+// an empty tile, or the player (1 or 2) who holds it.
+// ---------------------------------------------------------------------
 
-  if (allTiles.length === 0) return true;
+const opponentOf = (p) => (p === 1 ? 2 : 1);
 
-  // Reject real overlaps (positive-area intersection with any tile)
-  for (const tile of allTiles) {
-    if (tilesOverlap(candVerts, getVertices(tile))) return false;
+// The connected group of same-colored stones containing `start`, and its
+// liberties (empty tiles adjacent to the group).
+const groupAt = (tiles, stones, start) => {
+  const color = stones[start];
+  const members = [start];
+  const seen = new Set(members);
+  const liberties = new Set();
+  for (let k = 0; k < members.length; k++) {
+    for (const n of tiles[members[k]].neighbors) {
+      if (stones[n] === 0) liberties.add(n);
+      else if (stones[n] === color && !seen.has(n)) {
+        seen.add(n);
+        members.push(n);
+      }
+    }
+  }
+  return { members, liberties };
+};
+
+const positionKey = (stones) => stones.join('');
+
+// Plays `player` on tile `id`. Opponent groups left without liberties are
+// removed; a move that leaves its own group without liberties (suicide) or
+// repeats an earlier position (superko) is illegal.
+const playMove = (tiles, stones, history, id, player) => {
+  if (stones[id] !== 0) return { ok: false, reason: 'That tile is taken.' };
+
+  const next = stones.slice();
+  next[id] = player;
+  const opp = opponentOf(player);
+  let captured = 0;
+  for (const n of tiles[id].neighbors) {
+    if (next[n] !== opp) continue;
+    const g = groupAt(tiles, next, n);
+    if (g.liberties.size === 0) {
+      for (const m of g.members) next[m] = 0;
+      captured += g.members.length;
+    }
   }
 
-  // Must touch the existing structure, and every point where tiles meet
-  // must agree in Penrose vertex color - the real matching rule.
-  const { touches, colorsMatch } = checkVertexMatching(candidate, allTiles);
-  if (!touches || !colorsMatch) return false;
+  if (groupAt(tiles, next, id).liberties.size === 0) {
+    return { ok: false, reason: 'Illegal: that tile would have no liberties (suicide).' };
+  }
+  if (history.has(positionKey(next))) {
+    return { ok: false, reason: 'Illegal: that would repeat an earlier position (ko).' };
+  }
+  return { ok: true, stones: next, captured };
+};
 
-  // Must be edge-to-edge: share a full edge, and no T-junctions.
-  const { sharesEdge, tJunction } = checkEdgeContact(candidate, allTiles);
-  if (!sharesEdge || tJunction) return false;
+// Area scoring: each player's stones plus the empty regions bordered only
+// by that player's stones. Also returns the owner of every empty tile.
+const scoreArea = (tiles, stones) => {
+  const owner = new Array(tiles.length).fill(0);
+  const score = { 1: 0, 2: 0 };
+  stones.forEach(s => { if (s) score[s] += 1; });
 
-  // Enclosed territory owned by the opponent is off limits.
-  const opponent = player === 1 ? 2 : 1;
-  if (overlapsTerritory(terr, candVerts, opponent)) return false;
-
-  return true;
+  const seen = new Set();
+  for (let i = 0; i < tiles.length; i++) {
+    if (stones[i] !== 0 || seen.has(i)) continue;
+    const region = [i];
+    seen.add(i);
+    const borders = new Set<number>();
+    for (let k = 0; k < region.length; k++) {
+      for (const n of tiles[region[k]].neighbors) {
+        if (stones[n] === 0) {
+          if (!seen.has(n)) { seen.add(n); region.push(n); }
+        } else {
+          borders.add(stones[n]);
+        }
+      }
+    }
+    if (borders.size === 1) {
+      const p = [...borders][0];
+      score[p] += region.length;
+      for (const r of region) owner[r] = p;
+    }
+  }
+  return { score, owner };
 };
 
 // ---------------------------------------------------------------------
 // Computer opponent
 //
-// Generates every legal move by laying each tile type, at each rotation,
-// with one edge exactly on an open edge of the structure, then plays the
-// move whose resulting position (after captures and territory) scores best
-// for it. It looks one move ahead only.
+// Looks one move ahead. Each legal move is scored by the resulting stone
+// count plus an influence estimate (every empty tile within 3 steps counts
+// for the nearer player), minus twice the size of its own groups left in
+// atari (one liberty: likely lost, along with the area they claimed), plus
+// a little for opponent groups put in atari. With those weights, filling
+// its own area or a hopeless invasion gains nothing, so it passes once no
+// move improves the position. It never fills its own eyes, and it also
+// passes when the human has passed and it is ahead on the board.
 // ---------------------------------------------------------------------
 
-// Tile edges that are not shared with another tile (they border empty space).
-const findOpenEdges = (allTiles) => {
-  const vertsList = allTiles.map(getVertices);
-  const open = [];
-  vertsList.forEach((vs, t) => {
-    for (let e = 0; e < 4; e++) {
-      const a = vs[e], b = vs[(e + 1) % 4];
-      const shared = vertsList.some((os, j) => j !== t && os.some((p, k) => {
-        const q = os[(k + 1) % 4];
-        return (samePoint(a, p) && samePoint(b, q)) || (samePoint(a, q) && samePoint(b, p));
-      }));
-      if (!shared) open.push({ a, b, label: EDGE_LENGTHS[e] });
-    }
-  });
-  return open;
-};
+const INFLUENCE_RANGE = 3;
 
-const generateMoves = (allTiles, terr, player) => {
-  const open = findOpenEdges(allTiles);
+const evaluate = (tiles, stones, player) => {
+  const opp = opponentOf(player);
+  const dist = { 1: new Array(tiles.length).fill(Infinity), 2: new Array(tiles.length).fill(Infinity) };
+  for (const p of [1, 2]) {
+    const queue = [];
+    stones.forEach((s, i) => { if (s === p) { dist[p][i] = 0; queue.push(i); } });
+    for (let k = 0; k < queue.length; k++) {
+      const i = queue[k];
+      if (dist[p][i] >= INFLUENCE_RANGE) continue;
+      for (const n of tiles[i].neighbors) {
+        if (stones[n] === 0 && dist[p][n] === Infinity) {
+          dist[p][n] = dist[p][i] + 1;
+          queue.push(n);
+        }
+      }
+    }
+  }
+
+  let value = 0;
+  for (let i = 0; i < tiles.length; i++) {
+    if (stones[i] === player) value += 1;
+    else if (stones[i] === opp) value -= 1;
+    else if (dist[player][i] < dist[opp][i]) value += 1;
+    else if (dist[opp][i] < dist[player][i]) value -= 1;
+  }
+
   const seen = new Set();
-  const moves = [];
-
-  for (const type of ['kite', 'dart']) {
-    for (let rot = 0; rot < 360; rot += 36) {
-      const base = getVertices({ type, x: 0, y: 0, rotation: rot });
-      for (const oe of open) {
-        for (let k = 0; k < 4; k++) {
-          if (EDGE_LENGTHS[k] !== oe.label) continue;
-          const c1 = base[k], c2 = base[(k + 1) % 4];
-
-          for (const [t1, t2] of [[oe.a, oe.b], [oe.b, oe.a]]) {
-            const tx = t1.x - c1.x, ty = t1.y - c1.y;
-            // Both endpoints must land on the open edge
-            if (Math.hypot(c2.x + tx - t2.x, c2.y + ty - t2.y) > 2) continue;
-
-            const key = `${type}|${rot}|${Math.round(tx)}|${Math.round(ty)}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-
-            const cand = { type, x: tx, y: ty, rotation: rot };
-            if (isLegalPlacement(allTiles, terr, cand, player)) moves.push(cand);
-          }
-        }
-      }
+  for (let i = 0; i < tiles.length; i++) {
+    if (stones[i] === 0 || seen.has(i)) continue;
+    const g = groupAt(tiles, stones, i);
+    g.members.forEach(m => seen.add(m));
+    if (g.liberties.size === 1) {
+      value += stones[i] === player ? -2 * g.members.length : 0.5 * g.members.length;
     }
   }
-  return moves;
+  return value;
 };
 
-// Number of the candidate's edges that would sit directly against a tile
-// owned by `opp` (a mild reason to prefer blocking moves).
-const edgesTouchingPlayer = (cand, allTiles, opp) => {
-  const cv = getVertices(cand);
-  let count = 0;
-  for (const tile of allTiles) {
-    if (tile.player !== opp) continue;
-    const tv = getVertices(tile);
-    for (let a = 0; a < 4; a++) {
-      const a1 = cv[a], a2 = cv[(a + 1) % 4];
-      for (let b = 0; b < 4; b++) {
-        const b1 = tv[b], b2 = tv[(b + 1) % 4];
-        if ((samePoint(a1, b1) && samePoint(a2, b2)) || (samePoint(a1, b2) && samePoint(a2, b1))) {
-          count += 1;
-        }
-      }
-    }
-  }
-  return count;
-};
+const isOwnEye = (tiles, stones, id, player) =>
+  tiles[id].neighbors.every(n => stones[n] === player);
 
-// Score difference (player minus opponent) after playing `cand`, with
-// captures and territory applied, plus small tie-breakers that favor
-// compact shapes and blocking the opponent.
-const evaluateMove = (allTiles, cand, player) => {
-  const opp = player === 1 ? 2 : 1;
-  const newTile = { ...cand, player, id: allTiles.length };
-  const { tiles: after } = resolveCaptures([...allTiles, newTile], player);
-  const terr = computeTerritory(after);
-
-  const pts = { 1: 0, 2: 0 };
-  after.forEach(t => { pts[t.player] += 1; });
-  pts[1] += terr.holeScore[1];
-  pts[2] += terr.holeScore[2];
-
-  let score = pts[player] - pts[opp];
-  score += 0.05 * edgesTouchingPlayer(cand, allTiles, opp);
-  score -= 0.02 * findOpenEdges(after).length;
-  return score;
-};
-
-const chooseComputerMove = (allTiles, terr, player) => {
-  // Opening on an empty board (the human skipped the first move)
-  if (allTiles.length === 0) {
-    return { type: 'kite', x: BOARD_W / 2, y: BOARD_H / 2, rotation: 0 };
+// Returns a tile id to play, or null to pass.
+const chooseComputerMove = (tiles, stones, history, player, opponentPassed) => {
+  if (opponentPassed) {
+    const { score } = scoreArea(tiles, stones);
+    if (score[player] > score[opponentOf(player)]) return null;
   }
 
-  let moves = generateMoves(allTiles, terr, player);
-  if (moves.length === 0) return null;
-
-  // Cap the work per turn: evaluate a random sample if there are many moves.
-  if (moves.length > 150) {
-    for (let i = moves.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [moves[i], moves[j]] = [moves[j], moves[i]];
-    }
-    moves = moves.slice(0, 150);
-  }
-
+  const current = evaluate(tiles, stones, player);
   let best = null;
-  let bestScore = -Infinity;
-  for (const cand of moves) {
-    const s = evaluateMove(allTiles, cand, player) + Math.random() * 0.01;
-    if (s > bestScore) {
-      bestScore = s;
-      best = cand;
+  let bestValue = -Infinity;
+  for (let id = 0; id < tiles.length; id++) {
+    if (stones[id] !== 0 || isOwnEye(tiles, stones, id, player)) continue;
+    const r = playMove(tiles, stones, history, id, player);
+    if (!r.ok) continue;
+    const v = evaluate(tiles, r.stones, player) + Math.random() * 0.01;
+    if (v > bestValue) {
+      bestValue = v;
+      best = id;
     }
   }
+
+  // Pass when no move improves the position
+  if (best === null || bestValue <= current + 0.05) return null;
   return best;
+};
+
+// ---------------------------------------------------------------------
+// Drawing
+// ---------------------------------------------------------------------
+
+const PLAYER_FILL = { 1: 'rgba(59, 130, 246, 0.75)', 2: 'rgba(239, 68, 68, 0.75)' };
+const PLAYER_STROKE = { 1: '#1e40af', 2: '#991b1b' };
+const TERRITORY_FILL = { 1: 'rgba(59, 130, 246, 0.25)', 2: 'rgba(239, 68, 68, 0.25)' };
+
+const tracePolygon = (ctx, verts) => {
+  ctx.beginPath();
+  ctx.moveTo(verts[0].x, verts[0].y);
+  verts.forEach(v => ctx.lineTo(v.x, v.y));
+  ctx.closePath();
+};
+
+const drawStar = (ctx, c) => {
+  ctx.save();
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 === 0 ? 9 : 4;
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const px = c.x + r * Math.cos(a);
+    const py = c.y + r * Math.sin(a);
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = '#facc15';
+  ctx.fill();
+  ctx.strokeStyle = '#78350f';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
 };
 
 const PenroseTerritoryGame = () => {
   const canvasRef = useRef(null);
-  const [tiles, setTiles] = useState([]);
+  const [mode, setMode] = useState('ai'); // 'ai' (vs computer) or 'two'
+  const [gameStarted, setGameStarted] = useState(false);
+  const [board, setBoard] = useState(null); // tiles, created by the opening move
+  const [stones, setStones] = useState([]);
+  const [history, setHistory] = useState(() => new Set());
   const [currentPlayer, setCurrentPlayer] = useState(1);
+  const [passes, setPasses] = useState(0); // consecutive passes
+  const [captured, setCaptured] = useState({ 1: 0, 2: 0 });
+  const [lastMove, setLastMove] = useState(null); // tile id
+  const [gameOver, setGameOver] = useState(null); // final area scores
+  const [statusMsg, setStatusMsg] = useState('');
   const [selectedTileType, setSelectedTileType] = useState('kite');
   const [rotation, setRotation] = useState(0);
   const [hoveredPos, setHoveredPos] = useState(null);
-  const [gameStarted, setGameStarted] = useState(false);
-  const [statusMsg, setStatusMsg] = useState('');
-  const [mode, setMode] = useState('ai'); // 'ai' (vs computer) or 'two'
-
-  // In vs-computer mode the computer plays Player 2.
-  const isComputerTurn = mode === 'ai' && currentPlayer === 2;
-  const humanTurn = !isComputerTurn;
-  const playerName = (p) => (mode === 'ai' && p === 2 ? 'Computer' : `Player ${p}`);
-
-  // Enclosed empty areas and their owners, recomputed when tiles change.
-  const [showSafety, setShowSafety] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+
+  const tiles = board ? board.tiles : null;
+  const isComputerTurn = mode === 'ai' && currentPlayer === 2;
+  const humanTurn = gameStarted && !gameOver && !isComputerTurn;
+  const playerName = (p) => (mode === 'ai' && p === 2 ? 'Computer' : `Player ${p}`);
 
   // Escape closes the How to Play screen
   useEffect(() => {
@@ -708,302 +328,120 @@ const PenroseTerritoryGame = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showHelp]);
-  const [lastMove, setLastMove] = useState(null); // most recent move and what it captured
 
-  const territory = useMemo(() => computeTerritory(tiles), [tiles]);
+  // Live score is stones on the board; at the end it is area (stones plus
+  // surrounded empty tiles).
+  const stoneCount = useMemo(() => {
+    const c = { 1: 0, 2: 0 };
+    stones.forEach(s => { if (s) c[s] += 1; });
+    return c;
+  }, [stones]);
+  const shownScore = gameOver || stoneCount;
 
-  // Safety view: the same flood fill the capture test uses. For each tile,
-  // mark its cells 1 if they connect to open space without crossing the
-  // opponent's tiles (safe), or 2 if they are walled in.
-  const safety = useMemo(() => {
-    if (!showSafety || tiles.length === 0) return null;
-    const g = buildGrid(tiles);
-    const reachAvoidingRed = floodFromCorner(g, (o) => o !== 2);
-    const reachAvoidingBlue = floodFromCorner(g, (o) => o !== 1);
-    const cells = new Uint8Array(g.w * g.h);
-    for (let i = 0; i < cells.length; i++) {
-      const o = g.owner[i];
-      if (!o) continue;
-      const reachable = o === 1 ? reachAvoidingRed[i] : reachAvoidingBlue[i];
-      cells[i] = reachable ? 1 : 2;
-    }
-    return { x0: g.x0, y0: g.y0, w: g.w, cells };
-  }, [tiles, showSafety]);
-
-  // Score = 1 point per tile owned (captured tiles included, kites and
-  // darts alike) plus enclosed territory in tile-equivalents.
-  const scores = useMemo(() => {
-    const pts = { 1: 0, 2: 0 };
-    tiles.forEach(t => { pts[t.player] += 1; });
-    if (territory) {
-      pts[1] += territory.holeScore[1];
-      pts[2] += territory.holeScore[2];
-    }
-    return { player1: pts[1], player2: pts[2] };
-  }, [tiles, territory]);
-
-  // The board starts empty: Player 1 opens with any tile, at any rotation
-  // and position on the board.
   const initGame = () => {
-    setTiles([]);
-    setGameStarted(true);
+    setBoard(null);
+    setStones([]);
+    setHistory(new Set());
     setCurrentPlayer(1);
-    setStatusMsg('Place the first tile anywhere on the board.');
+    setPasses(0);
+    setCaptured({ 1: 0, 2: 0 });
+    setLastMove(null);
+    setGameOver(null);
+    setRotation(0);
+    setGameStarted(true);
+    setStatusMsg('Place the first tile anywhere: the board is built around it.');
   };
 
   const resetGame = () => {
-    setTiles([]);
     setGameStarted(false);
-    setCurrentPlayer(1);
-    setRotation(0);
+    setBoard(null);
+    setStones([]);
+    setGameOver(null);
+    setLastMove(null);
     setHoveredPos(null);
     setStatusMsg('');
   };
 
-  const drawTile = (ctx, tile) => {
-    const vertices = getVertices(tile);
-
-    ctx.beginPath();
-    ctx.moveTo(vertices[0].x, vertices[0].y);
-    vertices.forEach(v => ctx.lineTo(v.x, v.y));
-    ctx.closePath();
-
-    ctx.fillStyle = tile.player === 1
-      ? 'rgba(59, 130, 246, 0.6)'
-      : 'rgba(239, 68, 68, 0.6)';
-    ctx.fill();
-
-    ctx.strokeStyle = tile.player === 1 ? '#1e40af' : '#991b1b';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Small tick marks along each edge (visual texture only)
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < vertices.length; i++) {
-      const v1 = vertices[i];
-      const v2 = vertices[(i + 1) % vertices.length];
-      const midX = (v1.x + v2.x) / 2;
-      const midY = (v1.y + v2.y) / 2;
-      const dx = v2.y - v1.y;
-      const dy = v1.x - v2.x;
-      const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      ctx.beginPath();
-      ctx.moveTo(midX - dx / len * 3, midY - dy / len * 3);
-      ctx.lineTo(midX + dx / len * 3, midY + dy / len * 3);
-      ctx.stroke();
-    }
-
-    // Vertex colors (the Penrose matching labels): filled dots with a
-    // contrasting ring so both black and white read on any tile fill.
-    const colors = getVertexColors(tile);
-    vertices.forEach((v, i) => {
-      const isBlack = colors[i] === 'black';
-      ctx.beginPath();
-      ctx.arc(v.x, v.y, 5, 0, Math.PI * 2);
-      ctx.fillStyle = isBlack ? '#000' : '#fff';
-      ctx.fill();
-      ctx.strokeStyle = isBlack ? '#fff' : '#000';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    });
+  // The opening tile: generates the board around it and claims it.
+  const placeOpening = (cand, player) => {
+    const verts = getVertices(cand);
+    if (isOutsidePlayfield(verts)) return false;
+    const { tiles: newTiles, opening } = buildBoard(cand.type, verts, BOARD_W, BOARD_H, TILE_SIZE);
+    const newStones = new Array(newTiles.length).fill(0);
+    newStones[opening] = player;
+    setBoard({ tiles: newTiles });
+    setStones(newStones);
+    setHistory(new Set([positionKey(newStones)]));
+    setLastMove(opening);
+    setPasses(0);
+    setCurrentPlayer(opponentOf(player));
+    setStatusMsg('');
+    return true;
   };
 
-  // Legality of placing the currently selected tile at (x, y) this turn.
-  const isValidPlacement = (x, y) =>
-    isLegalPlacement(
-      tiles,
-      territory,
-      { type: selectedTileType, x, y, rotation },
-      currentPlayer
-    );
-
-  // Snaps the tile so one of its edges lands exactly on an existing tile's
-  // edge (no gaps). Tries every equal-length edge pairing, keeps only those
-  // that put the tile on the opposite side of the shared edge and pass the
-  // full placement rules, and picks the smallest movement.
-  const SNAP_RADIUS = 45;
-  const getSnappedPosition = (x, y) => {
-    if (tiles.length === 0) return { x, y, snapped: false };
-
-    const cv = getVertices({ type: selectedTileType, x, y, rotation });
-    const cc = centroidOf(cv);
-    let best = null;
-
-    for (const tile of tiles) {
-      const tv = getVertices(tile);
-      const tc = centroidOf(tv);
-
-      for (let a = 0; a < 4; a++) {
-        const a1 = tv[a], a2 = tv[(a + 1) % 4];
-
-        for (let k = 0; k < 4; k++) {
-          if (EDGE_LENGTHS[k] !== EDGE_LENGTHS[a]) continue;
-          const c1 = cv[k], c2 = cv[(k + 1) % 4];
-
-          // The edges can coincide in either direction
-          for (const [t1, t2] of [[a1, a2], [a2, a1]]) {
-            const tx = t1.x - c1.x, ty = t1.y - c1.y;
-
-            // Both endpoints must land on the target edge (edge is parallel)
-            if (Math.hypot(c2.x + tx - t2.x, c2.y + ty - t2.y) > 2) continue;
-
-            const dist = Math.hypot(tx, ty);
-            if (dist > SNAP_RADIUS) continue;
-            if (best && dist >= best.dist) continue;
-
-            // Tiles must sit on opposite sides of the shared edge
-            const ex = a2.x - a1.x, ey = a2.y - a1.y;
-            const sideExisting = ex * (tc.y - a1.y) - ey * (tc.x - a1.x);
-            const sideCandidate = ex * (cc.y + ty - a1.y) - ey * (cc.x + tx - a1.x);
-            if (sideExisting * sideCandidate >= 0) continue;
-
-            // A snap position that fails only the playfield test is still
-            // shown (so the red border warning can appear), but any
-            // in-bounds legal snap always wins over it.
-            const nx = x + tx, ny = y + ty;
-            const oob = isOutsidePlayfield(cv.map(v => ({ x: v.x + tx, y: v.y + ty })));
-            const legal = isLegalPlacement(
-              tiles,
-              territory,
-              { type: selectedTileType, x: nx, y: ny, rotation },
-              currentPlayer,
-              oob
-            );
-            if (!legal) continue;
-
-            const rank = dist + (oob ? 1000 : 0);
-            if (best && rank >= best.dist) continue;
-
-            best = { x: nx, y: ny, dist: rank, snapped: true };
-          }
-        }
-      }
+  // Claims board tile `id` for `player`, if legal.
+  const claimTile = (id, player) => {
+    const r = playMove(tiles, stones, history, id, player);
+    if (!r.ok) {
+      setStatusMsg(r.reason);
+      return false;
     }
-
-    return best || { x, y, snapped: false };
+    setStones(r.stones);
+    setHistory(prev => new Set(prev).add(positionKey(r.stones)));
+    setLastMove(id);
+    setPasses(0);
+    if (r.captured > 0) {
+      setCaptured(prev => ({ ...prev, [player]: prev[player] + r.captured }));
+      setStatusMsg(`${playerName(player)} captured ${r.captured} tile${r.captured === 1 ? '' : 's'}!`);
+    } else {
+      setStatusMsg('');
+    }
+    setCurrentPlayer(opponentOf(player));
+    return true;
   };
 
-  const drawPreview = (ctx, rawX, rawY) => {
-    const { x, y } = getSnappedPosition(rawX, rawY);
-    const previewTile = {
-      type: selectedTileType,
-      x,
-      y,
-      rotation,
-      player: currentPlayer
-    };
-
-    ctx.save();
-    ctx.globalAlpha = 0.55;
-    drawTile(ctx, previewTile);
-    ctx.restore();
-
-    const valid = isValidPlacement(x, y);
-    const vertices = getVertices(previewTile);
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(vertices[0].x, vertices[0].y);
-    vertices.forEach(v => ctx.lineTo(v.x, v.y));
-    ctx.closePath();
-    ctx.strokeStyle = valid ? '#16a34a' : '#dc2626';
-    ctx.lineWidth = 3;
-    ctx.setLineDash(valid ? [] : [6, 4]);
-    ctx.stroke();
-    ctx.restore();
-
-    // Red border around the whole playfield while the previewed tile has a
-    // vertex outside it.
-    if (isOutsidePlayfield(vertices)) {
-      ctx.save();
-      ctx.strokeStyle = '#dc2626';
-      ctx.lineWidth = 8;
-      ctx.strokeRect(4, 4, BOARD_W - 8, BOARD_H - 8);
-      ctx.restore();
+  const pass = (player) => {
+    if (!board) {
+      // Skipping the opening hands it to the other player
+      setCurrentPlayer(opponentOf(player));
+      setStatusMsg(`${playerName(player)} skipped the opening.`);
+      return;
     }
+    const n = passes + 1;
+    setPasses(n);
+    if (n >= 2) {
+      const { score } = scoreArea(tiles, stones);
+      setGameOver(score);
+      const winner = score[1] === score[2] ? null : score[1] > score[2] ? 1 : 2;
+      setStatusMsg(winner
+        ? `Game over: ${playerName(winner)} wins ${score[winner]} to ${score[opponentOf(winner)]}.`
+        : `Game over: a tie at ${score[1]}.`);
+      return;
+    }
+    setStatusMsg(`${playerName(player)} passes.`);
+    setCurrentPlayer(opponentOf(player));
   };
 
-  // Places a tile for `player`, resolves captures, and passes the turn.
-  // Used by both the human (via placeTile) and the computer.
-  const applyPlacement = (cand, player) => {
-    const newTile = {
-      type: cand.type,
-      x: cand.x,
-      y: cand.y,
-      rotation: cand.rotation,
-      player,
-      id: tiles.length
-    };
-
-    const opponent = player === 1 ? 2 : 1;
-    const { tiles: resolved, captured } = resolveCaptures([...tiles, newTile], player);
-
-    const plural = (n) => `${n} tile${n === 1 ? '' : 's'}`;
-    const messages = [];
-    if (captured[player] > 0) {
-      messages.push(`${playerName(player)} captured ${plural(captured[player])}!`);
-    }
-    if (captured[opponent] > 0) {
-      messages.push(`${playerName(opponent)} captured ${plural(captured[opponent])}!`);
-    }
-
-    // What this move changed: tiles that flipped owner, and empty space that
-    // newly became someone's territory (compared by position, since the two
-    // territory grids can have different extents).
-    const flippedIds = resolved
-      .filter((t, i) => i < tiles.length && t.player !== tiles[i].player)
-      .map(t => t.id);
-    const territoryAfter = computeTerritory(resolved);
-    const capturedCells = new Set();
-    if (territoryAfter) {
-      const { x0, y0, w, holeOwner } = territoryAfter;
-      for (let idx = 0; idx < holeOwner.length; idx++) {
-        const o = holeOwner[idx];
-        if (!o) continue;
-        const cx = x0 + ((idx % w) + 0.5) * CELL;
-        const cy = y0 + (((idx / w) | 0) + 0.5) * CELL;
-        if (holeOwnerAt(territory, cx, cy) !== o) {
-          capturedCells.add(`${Math.floor(cx / CELL)},${Math.floor(cy / CELL)}`);
-        }
-      }
-    }
-
-    setTiles(resolved);
-    setLastMove({
-      tileId: newTile.id,
-      regionIds: [newTile.id, ...flippedIds],
-      capturedCells
-    });
-    setStatusMsg(messages.join(' '));
-    setCurrentPlayer(opponent);
-    setRotation(0);
-  };
-
-  const placeTile = (x, y) => {
-    if (!humanTurn || !isValidPlacement(x, y)) return;
-    applyPlacement({ type: selectedTileType, x, y, rotation }, currentPlayer);
-  };
-
-  // The computer's turn: think briefly (so the board updates first), then
-  // play the best move found, or pass if it has none.
+  // The computer's turn: open the board if needed, otherwise play the best
+  // move found or pass.
   useEffect(() => {
-    if (!gameStarted || !isComputerTurn) return;
+    if (!gameStarted || gameOver || !isComputerTurn) return;
 
     setStatusMsg('Computer is thinking…');
     const timer = setTimeout(() => {
-      const move = chooseComputerMove(tiles, territory, 2);
-      if (!move) {
-        setStatusMsg('Computer has no legal move and passes.');
-        setCurrentPlayer(1);
+      if (!board) {
+        placeOpening({ type: 'kite', x: BOARD_W / 2, y: BOARD_H / 2, rotation: 0 }, 2);
         return;
       }
-      applyPlacement(move, 2);
-    }, 600);
+      const id = chooseComputerMove(tiles, stones, history, 2, passes > 0);
+      if (id === null) pass(2);
+      else claimTile(id, 2);
+    }, 400);
 
     return () => clearTimeout(timer);
-  }, [gameStarted, isComputerTurn, tiles, territory]);
+  }, [gameStarted, gameOver, isComputerTurn, board, stones]);
 
+  // Rotation controls (only matter for the opening tile)
   useEffect(() => {
     if (!gameStarted) return;
 
@@ -1028,7 +466,7 @@ const PenroseTerritoryGame = () => {
   // leftover partial step is dropped after a short pause in the stream.
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !gameStarted) return;
+    if (!canvas || !gameStarted || board) return;
 
     const WHEEL_NOTCH = 50;
     const TRACKPAD_STEP = 50; // lower = faster trackpad rotation
@@ -1060,7 +498,33 @@ const PenroseTerritoryGame = () => {
       canvas.removeEventListener('wheel', handleWheel);
       clearTimeout(swipe.timer);
     };
-  }, [gameStarted]);
+  }, [gameStarted, board]);
+
+  // What a point is over: the opening tile preview, or a board tile and
+  // whether claiming it is legal.
+  const targetAt = (pos) => {
+    if (!pos || !humanTurn) return null;
+    if (!board) {
+      const cand = { type: selectedTileType, x: pos.x, y: pos.y, rotation };
+      const verts = getVertices(cand);
+      return { kind: 'opening', cand, verts, legal: !isOutsidePlayfield(verts) };
+    }
+    const id = tileAtPoint(tiles, pos.x, pos.y);
+    if (id < 0) return null;
+    const r = playMove(tiles, stones, history, id, currentPlayer);
+    return { kind: 'tile', id, verts: tiles[id].verts, legal: r.ok };
+  };
+
+  const target = useMemo(
+    () => targetAt(hoveredPos),
+    [hoveredPos, humanTurn, board, stones, history, currentPlayer, selectedTileType, rotation]
+  );
+
+  const placeTarget = (t) => {
+    if (!t || !t.legal) return;
+    if (t.kind === 'opening') placeOpening(t.cand, currentPlayer);
+    else claimTile(t.id, currentPlayer);
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1069,138 +533,74 @@ const PenroseTerritoryGame = () => {
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Grid background
-    ctx.strokeStyle = '#e5e7eb';
-    ctx.lineWidth = 0.5;
-    for (let i = 0; i < canvas.width; i += 40) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i, canvas.height);
-      ctx.stroke();
-    }
-    for (let i = 0; i < canvas.height; i += 40) {
-      ctx.beginPath();
-      ctx.moveTo(0, i);
-      ctx.lineTo(canvas.width, i);
-      ctx.stroke();
-    }
-
-    // Tint enclosed territory in its owner's color (under the tiles)
-    if (territory) {
-      const { x0, y0, w, holeOwner } = territory;
-      for (let idx = 0; idx < holeOwner.length; idx++) {
-        const o = holeOwner[idx];
-        if (!o) continue;
-        ctx.fillStyle = o === 1 ? 'rgba(59, 130, 246, 0.22)' : 'rgba(239, 68, 68, 0.22)';
-        ctx.fillRect(x0 + (idx % w) * CELL, y0 + ((idx / w) | 0) * CELL, CELL + 0.5, CELL + 0.5);
+    if (!board) {
+      // Grid background until the board exists
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i < canvas.width; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, canvas.height);
+        ctx.stroke();
       }
-    }
-
-    tiles.forEach(tile => drawTile(ctx, tile));
-
-    // Highlight edges shared between two tiles (valid connections) in green
-    const connectedEdges = findConnectedEdges(tiles);
-    ctx.save();
-    ctx.strokeStyle = '#22c55e';
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    connectedEdges.forEach(seg => {
-      ctx.beginPath();
-      ctx.moveTo(seg.x1, seg.y1);
-      ctx.lineTo(seg.x2, seg.y2);
-      ctx.stroke();
-    });
-    ctx.restore();
-
-    // Safety view overlay: yellow = this part of a tile connects to open
-    // space without crossing the opponent's tiles; purple = walled in.
-    if (safety) {
-      const { x0, y0, w, cells } = safety;
-      for (let idx = 0; idx < cells.length; idx++) {
-        const c = cells[idx];
-        if (!c) continue;
-        ctx.fillStyle = c === 1 ? 'rgba(250, 204, 21, 0.55)' : 'rgba(168, 85, 247, 0.75)';
-        ctx.fillRect(x0 + (idx % w) * CELL, y0 + ((idx / w) | 0) * CELL, CELL, CELL);
+      for (let i = 0; i < canvas.height; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(canvas.width, i);
+        ctx.stroke();
       }
-    }
-
-    // Mark the last move: a glowing gold outline around the whole area it
-    // affected (the new tile, every tile it flipped, and any empty space it
-    // newly enclosed), plus a star on the tile just played. Drawn on top so
-    // it stays visible.
-    const lastTile = lastMove ? tiles.find(t => t.id === lastMove.tileId) : null;
-    if (lastTile) {
-      const regionSet = new Set(lastMove.regionIds);
-      const vertsList = tiles.map(getVertices);
-      const segs = [];
-
-      // An edge is on the outline when the region is on one side only.
-      tiles.forEach((tile, t) => {
-        const vs = vertsList[t];
-        const tc = centroidOf(vs);
-        const inside = regionSet.has(tile.id);
-        for (let e = 0; e < 4; e++) {
-          const a = vs[e], b = vs[(e + 1) % 4];
-
-          const neighbor = vertsList.findIndex((os, j) => j !== t && os.some((p, k) => {
-            const q = os[(k + 1) % 4];
-            return (samePoint(a, p) && samePoint(b, q)) || (samePoint(a, q) && samePoint(b, p));
-          }));
-
-          let across;
-          if (neighbor >= 0) {
-            across = regionSet.has(tiles[neighbor].id);
-          } else {
-            // Empty side: is it space this move newly captured?
-            const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-            let n = normalize(-(b.y - a.y), b.x - a.x);
-            if (n.x * (mx - tc.x) + n.y * (my - tc.y) < 0) n = { x: -n.x, y: -n.y };
-            const key = `${Math.floor((mx + n.x * 4) / CELL)},${Math.floor((my + n.y * 4) / CELL)}`;
-            across = lastMove.capturedCells.has(key);
-          }
-
-          if (inside !== across) segs.push([a, b]);
-        }
+    } else {
+      const territory = gameOver ? scoreArea(tiles, stones).owner : null;
+      tiles.forEach((t, i) => {
+        tracePolygon(ctx, t.verts);
+        const s = stones[i];
+        ctx.fillStyle = s ? PLAYER_FILL[s] : territory && territory[i] ? TERRITORY_FILL[territory[i]] : '#f1f5f9';
+        ctx.fill();
+        ctx.strokeStyle = s ? PLAYER_STROKE[s] : '#94a3b8';
+        ctx.lineWidth = s ? 1.5 : 1;
+        ctx.stroke();
       });
 
+      if (lastMove !== null && stones[lastMove]) {
+        const verts = tiles[lastMove].verts;
+        ctx.save();
+        tracePolygon(ctx, verts);
+        ctx.shadowColor = '#facc15';
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 4;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+        ctx.restore();
+        drawStar(ctx, centroidOf(verts));
+      }
+    }
+
+    if (target) {
       ctx.save();
-      ctx.beginPath();
-      segs.forEach(([a, b]) => {
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-      });
-      ctx.shadowColor = '#facc15';
-      ctx.shadowBlur = 14;
-      ctx.strokeStyle = '#facc15';
-      ctx.lineWidth = 5;
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
+      tracePolygon(ctx, target.verts);
+      if (target.legal) {
+        ctx.fillStyle = PLAYER_FILL[currentPlayer];
+        ctx.globalAlpha = 0.5;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      ctx.strokeStyle = target.legal ? '#16a34a' : '#dc2626';
+      ctx.lineWidth = 3;
+      ctx.setLineDash(target.legal ? [] : [6, 4]);
       ctx.stroke();
       ctx.restore();
 
-      const c = centroidOf(vertsList[tiles.indexOf(lastTile)]);
-      ctx.save();
-      ctx.beginPath();
-      for (let i = 0; i < 10; i++) {
-        const r = i % 2 === 0 ? 9 : 4;
-        const a = -Math.PI / 2 + (i * Math.PI) / 5;
-        const px = c.x + r * Math.cos(a);
-        const py = c.y + r * Math.sin(a);
-        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      // Red border while the opening tile would stick out of the board
+      if (target.kind === 'opening' && !target.legal) {
+        ctx.save();
+        ctx.strokeStyle = '#dc2626';
+        ctx.lineWidth = 8;
+        ctx.strokeRect(4, 4, BOARD_W - 8, BOARD_H - 8);
+        ctx.restore();
       }
-      ctx.closePath();
-      ctx.fillStyle = '#facc15';
-      ctx.fill();
-      ctx.strokeStyle = '#78350f';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      ctx.restore();
     }
-
-    if (hoveredPos && gameStarted && humanTurn) {
-      drawPreview(ctx, hoveredPos.x, hoveredPos.y);
-    }
-  }, [tiles, territory, safety, lastMove, hoveredPos, rotation, selectedTileType, gameStarted, humanTurn]);
+  }, [board, stones, lastMove, gameOver, target, currentPlayer]);
 
   // Touch devices have no hover, so the preview follows a finger drag and
   // is lifted above the fingertip so it isn't hidden under it.
@@ -1208,8 +608,7 @@ const PenroseTerritoryGame = () => {
   const isTouchDevice = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
 
   // Convert a pointer event's CSS pixel position into the canvas's internal
-  // drawing coordinate space, since the canvas is styled with "w-full" and
-  // can be stretched relative to its 800x600 drawing buffer.
+  // 800x600 drawing coordinates (the canvas is scaled to fit the window).
   const getCanvasCoords = (e) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -1224,30 +623,32 @@ const PenroseTerritoryGame = () => {
   };
 
   const handlePointerDown = (e) => {
-    if (!gameStarted || !humanTurn) return;
+    if (!humanTurn) return;
     if (e.pointerType === 'touch') e.currentTarget.setPointerCapture?.(e.pointerId);
     setHoveredPos(getCanvasCoords(e));
   };
 
   const handlePointerMove = (e) => {
-    if (!gameStarted || !humanTurn) return;
+    if (!humanTurn) return;
     setHoveredPos(getCanvasCoords(e));
   };
 
-  // Mouse: click places immediately. Touch: lifting the finger leaves the
-  // preview in place so it can be adjusted, and the Place button confirms.
+  // Mouse: left click places immediately. Touch: lifting the finger leaves
+  // the preview in place so it can be adjusted, and the Place button confirms.
   const handlePointerUp = (e) => {
-    if (!gameStarted || !humanTurn || e.pointerType !== 'mouse' || e.button !== 0) return;
-    const { x, y } = getCanvasCoords(e);
-    const pos = getSnappedPosition(x, y);
-    placeTile(pos.x, pos.y);
+    if (!humanTurn || e.pointerType !== 'mouse' || e.button !== 0) return;
+    const t = targetAt(getCanvasCoords(e));
+    if (t && t.kind === 'tile' && !t.legal) {
+      setStatusMsg(playMove(tiles, stones, history, t.id, currentPlayer).reason);
+    }
+    placeTarget(t);
   };
 
-  // Right-click rotates clockwise (Shift + right-click counter-clockwise)
-  // instead of opening the browser menu.
+  // Right-click rotates the opening tile clockwise (Shift + right-click
+  // counter-clockwise) instead of opening the browser menu.
   const handleContextMenu = (e) => {
     e.preventDefault();
-    if (!gameStarted) return;
+    if (!gameStarted || board) return;
     setRotation(prev => (prev + (e.shiftKey ? -36 : 36) + 360) % 360);
   };
 
@@ -1255,14 +656,11 @@ const PenroseTerritoryGame = () => {
     if (e.pointerType === 'mouse') setHoveredPos(null);
   };
 
-  const snappedPreview = hoveredPos && humanTurn ? getSnappedPosition(hoveredPos.x, hoveredPos.y) : null;
-  const previewValid = snappedPreview ? isValidPlacement(snappedPreview.x, snappedPreview.y) : false;
-
-  const placeAtPreview = () => {
-    if (!snappedPreview || !previewValid) return;
-    placeTile(snappedPreview.x, snappedPreview.y);
-    setHoveredPos(null);
-  };
+  const turnText = !gameStarted
+    ? 'Press Start'
+    : gameOver
+      ? 'Game Over'
+      : `${playerName(currentPlayer)}'s Turn`;
 
   // The layout fills exactly the visible window (dvh tracks mobile browser
   // toolbars): header, scores and controls take their natural height and the
@@ -1283,13 +681,15 @@ const PenroseTerritoryGame = () => {
 
         <div className="bg-slate-800 rounded-lg px-3 py-2 flex justify-around items-center">
           <div className="text-center">
-            <div className="text-blue-400 text-xl sm:text-2xl font-bold">{scores.player1}</div>
-            <div className="text-slate-400 text-xs sm:text-sm">{playerName(1)}</div>
+            <div className="text-blue-400 text-xl sm:text-2xl font-bold">{shownScore[1]}</div>
+            <div className="text-slate-400 text-xs sm:text-sm">
+              {playerName(1)}{captured[1] > 0 && ` · ${captured[1]} captured`}
+            </div>
           </div>
 
           <div className="text-center">
-            <div className={`text-base sm:text-xl font-bold ${currentPlayer === 1 ? 'text-blue-400' : 'text-red-400'}`}>
-              {gameStarted ? `${playerName(currentPlayer)}'s Turn` : 'Press Start'}
+            <div className={`text-base sm:text-xl font-bold ${gameOver ? 'text-white' : currentPlayer === 1 ? 'text-blue-400' : 'text-red-400'}`}>
+              {turnText}
             </div>
             {statusMsg && (
               <div className="text-yellow-300 text-xs sm:text-sm">{statusMsg}</div>
@@ -1297,8 +697,10 @@ const PenroseTerritoryGame = () => {
           </div>
 
           <div className="text-center">
-            <div className="text-red-400 text-xl sm:text-2xl font-bold">{scores.player2}</div>
-            <div className="text-slate-400 text-xs sm:text-sm">{playerName(2)}</div>
+            <div className="text-red-400 text-xl sm:text-2xl font-bold">{shownScore[2]}</div>
+            <div className="text-slate-400 text-xs sm:text-sm">
+              {playerName(2)}{captured[2] > 0 && ` · ${captured[2]} captured`}
+            </div>
           </div>
         </div>
 
@@ -1333,78 +735,84 @@ const PenroseTerritoryGame = () => {
             </>
           ) : (
             <>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setSelectedTileType('kite')}
-                  className={`px-4 py-2 rounded-lg font-semibold ${
-                    selectedTileType === 'kite'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-700 text-slate-300'
-                  }`}
-                >
-                  Kite
-                </button>
-                <button
-                  onClick={() => setSelectedTileType('dart')}
-                  className={`px-4 py-2 rounded-lg font-semibold ${
-                    selectedTileType === 'dart'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-700 text-slate-300'
-                  }`}
-                >
-                  Dart
-                </button>
-              </div>
-
-              {isTouchDevice ? (
+              {!board && (
                 <>
-                  <button
-                    onClick={() => setRotation((rotation - 36 + 360) % 360)}
-                    aria-label="Rotate counter-clockwise"
-                    className="bg-slate-700 active:bg-slate-600 text-white px-5 py-3 rounded-lg flex items-center gap-2"
-                  >
-                    <RotateCw size={22} style={{ transform: 'scaleX(-1)' }} />
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedTileType('kite')}
+                      className={`px-4 py-2 rounded-lg font-semibold ${
+                        selectedTileType === 'kite'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-700 text-slate-300'
+                      }`}
+                    >
+                      Kite
+                    </button>
+                    <button
+                      onClick={() => setSelectedTileType('dart')}
+                      className={`px-4 py-2 rounded-lg font-semibold ${
+                        selectedTileType === 'dart'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-700 text-slate-300'
+                      }`}
+                    >
+                      Dart
+                    </button>
+                  </div>
 
-                  <button
-                    onClick={() => setRotation((rotation + 36) % 360)}
-                    aria-label="Rotate clockwise"
-                    className="bg-slate-700 active:bg-slate-600 text-white px-5 py-3 rounded-lg flex items-center gap-2"
-                  >
-                    <RotateCw size={22} />
-                    <span className="text-sm">{rotation}°</span>
-                  </button>
+                  {isTouchDevice ? (
+                    <>
+                      <button
+                        onClick={() => setRotation((rotation - 36 + 360) % 360)}
+                        aria-label="Rotate counter-clockwise"
+                        className="bg-slate-700 active:bg-slate-600 text-white px-5 py-3 rounded-lg flex items-center gap-2"
+                      >
+                        <RotateCw size={22} style={{ transform: 'scaleX(-1)' }} />
+                      </button>
+
+                      <button
+                        onClick={() => setRotation((rotation + 36) % 360)}
+                        aria-label="Rotate clockwise"
+                        className="bg-slate-700 active:bg-slate-600 text-white px-5 py-3 rounded-lg flex items-center gap-2"
+                      >
+                        <RotateCw size={22} />
+                        <span className="text-sm">{rotation}°</span>
+                      </button>
+                    </>
+                  ) : (
+                    <div className="text-slate-300 text-sm flex items-center gap-2">
+                      <RotateCw size={18} />
+                      <span>Rotate: scroll wheel, right-click, or ←/→</span>
+                      <span className="text-white font-semibold w-10">{rotation}°</span>
+                    </div>
+                  )}
                 </>
-              ) : (
-                <div className="text-slate-300 text-sm flex items-center gap-2">
-                  <RotateCw size={18} />
-                  <span>Rotate: scroll wheel, right-click, or ←/→</span>
-                  <span className="text-white font-semibold w-10">{rotation}°</span>
-                </div>
               )}
 
-              {isTouchDevice && (
+              {isTouchDevice && !gameOver && (
                 <button
-                  onClick={placeAtPreview}
-                  disabled={!previewValid}
+                  onClick={() => { placeTarget(target); setHoveredPos(null); }}
+                  disabled={!target || !target.legal}
                   className={`px-6 py-3 rounded-lg font-semibold text-white ${
-                    previewValid ? 'bg-green-600 active:bg-green-700' : 'bg-slate-600 opacity-50'
+                    target && target.legal ? 'bg-green-600 active:bg-green-700' : 'bg-slate-600 opacity-50'
                   }`}
                 >
                   Place
                 </button>
               )}
 
-              <button
-                onClick={() => setCurrentPlayer(currentPlayer === 1 ? 2 : 1)}
-                disabled={!humanTurn}
-                className={`bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 ${
-                  humanTurn ? '' : 'opacity-50'
-                }`}
-              >
-                <SkipForward size={20} />
-                Skip Turn
-              </button>
+              {!gameOver && (
+                <button
+                  onClick={() => pass(currentPlayer)}
+                  disabled={!humanTurn}
+                  className={`bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 ${
+                    humanTurn ? '' : 'opacity-50'
+                  }`}
+                >
+                  <SkipForward size={20} />
+                  {board ? 'Pass' : 'Skip Opening'}
+                </button>
+              )}
 
               <button
                 onClick={resetGame}
@@ -1413,23 +821,6 @@ const PenroseTerritoryGame = () => {
                 <RotateCcw size={18} />
                 New Game
               </button>
-
-              <button
-                onClick={() => setShowSafety(s => !s)}
-                className={`px-4 py-2 rounded-lg font-semibold ${
-                  showSafety ? 'bg-yellow-500 text-slate-900' : 'bg-slate-700 text-slate-300'
-                }`}
-              >
-                Safety view
-              </button>
-
-              {showSafety && (
-                <div className="w-full text-center text-sm text-slate-300">
-                  <span className="text-yellow-300 font-semibold">Yellow</span> = connected to open
-                  space (safe). <span className="text-purple-300 font-semibold">Purple</span> = walled
-                  in (would be captured). A tile is only captured if none of it is yellow.
-                </div>
-              )}
             </>
           )}
         </div>
@@ -1471,19 +862,21 @@ const PenroseTerritoryGame = () => {
                 <X size={24} />
               </button>
             </div>
-            <p className="mb-3">Penrose tiling meets Go: build, surround, capture.</p>
+            <p className="mb-3">Go, played on a Penrose tiling of kites and darts.</p>
             <ul className="list-disc list-inside space-y-2">
               <li>Choose 2 Players or vs Computer (the computer plays red), then press Start</li>
-              <li>Player 1 places the first tile anywhere; then players alternate placing kite or dart tiles edge-to-edge</li>
               <li>
+                Player 1 places the first tile anywhere, as a kite or dart at any rotation
                 {isTouchDevice
-                  ? 'Rotate with the buttons (36° steps)'
-                  : 'Rotate with the scroll wheel over the board, right-click (Shift + right-click for the other way), or Left/Right arrow keys (36° steps)'}
+                  ? ' (rotate with the buttons)'
+                  : ' (rotate with the scroll wheel, right-click, or Left/Right arrow keys)'}.
+                A full Penrose tiling is then laid out around it, and that tile is Player 1's first stone
               </li>
-              <li>Green preview outline = valid Penrose-matched placement; red dashed = blocked</li>
-              <li>Surround an area completely and it is yours: enemy tiles inside flip to your color</li>
-              <li>Empty space you fully enclose is tinted as your territory; opponents can't build there</li>
-              <li>Score: 1 point per tile you own (kite or dart), plus enclosed territory counted in tile-equivalents</li>
+              <li>Players then take turns claiming any empty tile</li>
+              <li>Tiles that share an edge are neighbors. A group of your tiles is captured, and removed, when none of its neighbors are empty</li>
+              <li>You can't claim a tile that would leave your own group with no empty neighbors (suicide), or that repeats an earlier position (ko)</li>
+              <li>Pass when you have nothing useful to play. Two passes in a row end the game</li>
+              <li>Score: tiles you hold plus empty areas surrounded only by your tiles. Surrounded areas are tinted when the game ends</li>
             </ul>
           </div>
         </div>
