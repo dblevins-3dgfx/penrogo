@@ -12,7 +12,7 @@ A two-player, turn-based tile placement game played with Penrose kite and dart t
 |---|---|
 | Framework | React 19 (functional component, hooks) |
 | Build | Vite, TypeScript (the component itself is untyped; `npm run typecheck` is separate from the build) |
-| Rendering | HTML5 Canvas 2D, 800 x 600 internal resolution, scaled to container width |
+| Rendering | HTML5 Canvas 2D, 800 x 600 internal resolution, scaled to the largest 4:3 size that fits the window |
 | Styling | Tailwind CSS v4 utility classes |
 | Icons | lucide-react (`RotateCw`, `RotateCcw`, `Play`, `SkipForward`) |
 | Persistence | None (all state in memory) |
@@ -149,7 +149,7 @@ It looks one move ahead only, so it will not anticipate an opponent's capture on
 | **Place** button | Confirm placement; disabled while the preview is illegal |
 | Rotate buttons | Large tap targets, clockwise button also shows current angle. Shown only on touch devices (`navigator.maxTouchPoints > 0`); desktop gets the rotation hint instead |
 
-Implementation notes: pointer events (`pointerdown/move/up/leave`), `touch-action: none` on the canvas, and pointer coordinates scaled from CSS pixels to the 800 x 600 canvas space. The page scrolls (`min-h-screen`) rather than locking to one screen height.
+Implementation notes: pointer events (`pointerdown/move/up/leave`), `touch-action: none` on the canvas, and pointer coordinates scaled from CSS pixels to the 800 x 600 canvas space. The page fills exactly the visible window (`h-dvh`, which follows mobile browser toolbars) and never scrolls: header, scores and controls take their natural height, and the board gets the rest, sized with CSS container units to the largest 4:3 rectangle that fits. The rules are on a separate **How to Play** screen (button in the header), a full-screen overlay closed with its X button, a tap outside it, or Escape; the game keeps its state underneath.
 
 ## 9. Known Limitations and Not Yet Implemented
 

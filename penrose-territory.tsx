@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { RotateCw, Play, SkipForward, RotateCcw } from 'lucide-react';
+import { RotateCw, Play, SkipForward, RotateCcw, CircleHelp, X } from 'lucide-react';
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 const TILE_SIZE = 60;
@@ -697,6 +697,17 @@ const PenroseTerritoryGame = () => {
 
   // Enclosed empty areas and their owners, recomputed when tiles change.
   const [showSafety, setShowSafety] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+
+  // Escape closes the How to Play screen
+  useEffect(() => {
+    if (!showHelp) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setShowHelp(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showHelp]);
   const [lastMove, setLastMove] = useState(null); // most recent move and what it captured
 
   const territory = useMemo(() => computeTerritory(tiles), [tiles]);
@@ -1253,38 +1264,45 @@ const PenroseTerritoryGame = () => {
     setHoveredPos(null);
   };
 
+  // The layout fills exactly the visible window (dvh tracks mobile browser
+  // toolbars): header, scores and controls take their natural height and the
+  // board scales to the largest 4:3 size that fits in the rest.
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-start sm:justify-center p-2 sm:p-4">
-      <div className="max-w-6xl w-full">
-        <h1 className="text-4xl font-bold text-white mb-2 text-center">
-          Penrogo
-        </h1>
-        <p className="text-slate-300 text-center mb-6">
-          Penrose tiling meets Go: build, surround, capture
-        </p>
+    <div className="w-full h-dvh overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center p-2 sm:p-3">
+      <div className="max-w-6xl w-full h-full flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Penrogo</h1>
+          <button
+            onClick={() => setShowHelp(true)}
+            className="text-slate-300 hover:text-white flex items-center gap-1 text-sm"
+          >
+            <CircleHelp size={20} />
+            How to Play
+          </button>
+        </div>
 
-        <div className="bg-slate-800 rounded-lg p-4 mb-4 flex justify-around items-center">
+        <div className="bg-slate-800 rounded-lg px-3 py-2 flex justify-around items-center">
           <div className="text-center">
-            <div className="text-blue-400 text-2xl font-bold">{scores.player1}</div>
-            <div className="text-slate-400 text-sm">{playerName(1)}</div>
+            <div className="text-blue-400 text-xl sm:text-2xl font-bold">{scores.player1}</div>
+            <div className="text-slate-400 text-xs sm:text-sm">{playerName(1)}</div>
           </div>
 
           <div className="text-center">
-            <div className={`text-xl font-bold ${currentPlayer === 1 ? 'text-blue-400' : 'text-red-400'}`}>
+            <div className={`text-base sm:text-xl font-bold ${currentPlayer === 1 ? 'text-blue-400' : 'text-red-400'}`}>
               {gameStarted ? `${playerName(currentPlayer)}'s Turn` : 'Press Start'}
             </div>
             {statusMsg && (
-              <div className="text-yellow-300 text-sm mt-1">{statusMsg}</div>
+              <div className="text-yellow-300 text-xs sm:text-sm">{statusMsg}</div>
             )}
           </div>
 
           <div className="text-center">
-            <div className="text-red-400 text-2xl font-bold">{scores.player2}</div>
-            <div className="text-slate-400 text-sm">{playerName(2)}</div>
+            <div className="text-red-400 text-xl sm:text-2xl font-bold">{scores.player2}</div>
+            <div className="text-slate-400 text-xs sm:text-sm">{playerName(2)}</div>
           </div>
         </div>
 
-        <div className="bg-slate-800 rounded-lg p-4 mb-4 flex gap-4 items-center justify-center flex-wrap">
+        <div className="bg-slate-800 rounded-lg p-2 flex gap-2 sm:gap-3 items-center justify-center flex-wrap">
           {!gameStarted ? (
             <>
               <div className="flex gap-2">
@@ -1416,7 +1434,9 @@ const PenroseTerritoryGame = () => {
           )}
         </div>
 
-        <div className="bg-slate-800 rounded-lg p-4 shadow-2xl">
+        {/* Size container: the canvas width is the smaller of the full
+            width and the width a 4:3 board would have at the full height. */}
+        <div className="flex-1 min-h-0 flex items-start justify-center" style={{ containerType: 'size' }}>
           <canvas
             ref={canvasRef}
             width={800}
@@ -1426,28 +1446,48 @@ const PenroseTerritoryGame = () => {
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerLeave}
             onContextMenu={handleContextMenu}
-            style={{ touchAction: 'none' }}
-            className="w-full h-auto bg-white rounded cursor-crosshair"
+            style={{ touchAction: 'none', width: 'min(100cqw, 100cqh * 4 / 3)' }}
+            className="h-auto bg-white rounded shadow-2xl cursor-crosshair"
           />
         </div>
-
-        <div className="bg-slate-800 rounded-lg p-4 mt-4 text-slate-300 text-sm">
-          <strong className="text-white">How to Play:</strong>
-          <ul className="list-disc list-inside mt-2 space-y-1">
-            <li>Choose 2 Players or vs Computer (the computer plays red), then press Start</li>
-            <li>Player 1 places the first tile anywhere; then players alternate placing kite or dart tiles edge-to-edge</li>
-            <li>
-              {isTouchDevice
-                ? 'Rotate with the buttons (36° steps)'
-                : 'Rotate with the scroll wheel over the board, right-click (Shift + right-click for the other way), or Left/Right arrow keys (36° steps)'}
-            </li>
-            <li>Green preview outline = valid Penrose-matched placement; red dashed = blocked</li>
-            <li>Surround an area completely and it is yours: enemy tiles inside flip to your color</li>
-            <li>Empty space you fully enclose is tinted as your territory; opponents can't build there</li>
-            <li>Score: 1 point per tile you own (kite or dart), plus enclosed territory counted in tile-equivalents</li>
-          </ul>
-        </div>
       </div>
+
+      {showHelp && (
+        <div
+          className="fixed inset-0 z-10 bg-slate-900/95 overflow-y-auto p-4"
+          onClick={() => setShowHelp(false)}
+        >
+          <div
+            className="max-w-2xl mx-auto bg-slate-800 rounded-lg p-4 sm:p-6 text-slate-300 text-sm sm:text-base"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xl sm:text-2xl font-bold text-white">How to Play</h2>
+              <button
+                onClick={() => setShowHelp(false)}
+                aria-label="Close"
+                className="text-slate-300 hover:text-white p-1"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <p className="mb-3">Penrose tiling meets Go: build, surround, capture.</p>
+            <ul className="list-disc list-inside space-y-2">
+              <li>Choose 2 Players or vs Computer (the computer plays red), then press Start</li>
+              <li>Player 1 places the first tile anywhere; then players alternate placing kite or dart tiles edge-to-edge</li>
+              <li>
+                {isTouchDevice
+                  ? 'Rotate with the buttons (36° steps)'
+                  : 'Rotate with the scroll wheel over the board, right-click (Shift + right-click for the other way), or Left/Right arrow keys (36° steps)'}
+              </li>
+              <li>Green preview outline = valid Penrose-matched placement; red dashed = blocked</li>
+              <li>Surround an area completely and it is yours: enemy tiles inside flip to your color</li>
+              <li>Empty space you fully enclose is tinted as your territory; opponents can't build there</li>
+              <li>Score: 1 point per tile you own (kite or dart), plus enclosed territory counted in tile-equivalents</li>
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
