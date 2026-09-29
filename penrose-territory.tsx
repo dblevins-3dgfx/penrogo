@@ -3,6 +3,7 @@ import { RotateCw, Play, SkipForward, RotateCcw, CircleHelp, X, Palette } from '
 import { buildBoard } from './penrose-board';
 import { opponentOf, playMove, positionKey, scoreArea } from './go-engine';
 import { SKINS, DEFAULT_SKIN, skinById } from './skins';
+import { DazzleEffects } from './dazzle-effects';
 
 // The chosen skin is remembered in this browser (localStorage).
 const SKIN_STORAGE_KEY = 'penrogo.skin';
@@ -149,6 +150,17 @@ const PenroseTerritoryGame = () => {
   const [skinId, setSkinId] = useState(loadSkin);
   const skin = skinById(skinId);
 
+  // Animated effects (Dazzle) on an overlay canvas above the board, unless
+  // the device asks for reduced motion.
+  const overlayRef = useRef(null);
+  const effectsRef = useRef(null);
+  if (!effectsRef.current) effectsRef.current = new DazzleEffects();
+  const reducedMotion = useMemo(
+    () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+    []
+  );
+  const effectsOn = !!skin.effects && !reducedMotion;
+
   const tiles = board ? board.tiles : null;
   const isComputerTurn = mode === 'ai' && currentPlayer === 2;
   const humanTurn = gameStarted && !gameOver && !isComputerTurn;
@@ -163,6 +175,17 @@ const PenroseTerritoryGame = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showHelp]);
+
+  useEffect(() => {
+    if (!effectsOn || !overlayRef.current) return;
+    const fx = effectsRef.current;
+    fx.attach(overlayRef.current);
+    return () => fx.detach();
+  }, [effectsOn]);
+
+  useEffect(() => {
+    effectsRef.current.setBoard(tiles, stones);
+  }, [board, stones]);
 
   // Live score is stones on the board; at the end it is area (stones plus
   // surrounded empty tiles).
@@ -204,6 +227,8 @@ const PenroseTerritoryGame = () => {
     const { tiles: newTiles, opening } = buildBoard(cand.type, verts, BOARD_W, BOARD_H, TILE_SIZE);
     const newStones = new Array(newTiles.length).fill(0);
     newStones[opening] = player;
+    effectsRef.current.cascade(newTiles, verts);
+    effectsRef.current.place(verts, player);
     setBoard({ tiles: newTiles });
     setStones(newStones);
     setHistory(new Set([positionKey(newStones)]));
@@ -221,6 +246,10 @@ const PenroseTerritoryGame = () => {
       setStatusMsg(r.reason);
       return false;
     }
+    const opp = opponentOf(player);
+    const lost = stones.map((s, i) => (s === opp && r.stones[i] === 0 ? i : -1)).filter(i => i >= 0);
+    effectsRef.current.place(tiles[id].verts, player);
+    if (lost.length) effectsRef.current.capture(lost.map(i => tiles[i].verts), opp, player);
     setStones(r.stones);
     setHistory(prev => new Set(prev).add(positionKey(r.stones)));
     setLastMove(id);
@@ -667,6 +696,7 @@ const PenroseTerritoryGame = () => {
         {/* Size container: the canvas width is the smaller of the full
             width and the width a 4:3 board would have at the full height. */}
         <div className="flex-1 min-h-0 flex items-start justify-center" style={{ containerType: 'size' }}>
+          <div className="relative" style={{ width: 'min(100cqw, 100cqh * 4 / 3)' }}>
           <canvas
             ref={canvasRef}
             width={800}
@@ -676,9 +706,19 @@ const PenroseTerritoryGame = () => {
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerLeave}
             onContextMenu={handleContextMenu}
-            style={{ touchAction: 'none', width: 'min(100cqw, 100cqh * 4 / 3)' }}
-            className={`h-auto ${skin.chrome.canvas} rounded shadow-2xl cursor-crosshair`}
+            style={{ touchAction: 'none' }}
+            className={`block w-full h-auto ${skin.chrome.canvas} rounded shadow-2xl cursor-crosshair`}
           />
+          {effectsOn && (
+            <canvas
+              ref={overlayRef}
+              width={800}
+              height={600}
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full rounded pointer-events-none"
+            />
+          )}
+          </div>
         </div>
       </div>
 

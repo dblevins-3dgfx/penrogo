@@ -74,7 +74,16 @@ The look is chosen from a picker in the header, at any time (even mid-game); it 
 | Skin | Look |
 |---|---|
 | Plain Jane (default) | The table above: flat blue and red on a white board with a light grid |
-| Dazzle | Bejeweled-inspired. Stones are cut gems, sapphire for Player 1 and ruby for Player 2: a table facet plus one side facet per edge, each shaded by how it faces a light at the upper left, with a white glint. Empty tiles are dark sockets with gold rims on a velvet background with fixed gold sparkles. The last move gets a glow and twinkles; the hover preview is a translucent gem with a glowing outline. Page panels are purple with gold rings, and the title is a gold-pink-blue gradient |
+| Dazzle | Bejeweled-inspired. Stones are cut gems, sapphire for Player 1 and ruby for Player 2: a table facet plus one side facet per edge, each shaded by how it faces a light at the upper left, with a white glint. Empty tiles are dark sockets with gold rims on a velvet background with fixed gold sparkles. The last move gets a glow and twinkles; the hover preview is a translucent gem with a glowing outline. Page panels are purple with gold rings, and the title is a gold-pink-blue gradient. Animated (see below) |
+
+**Dazzle animations** (`dazzle-effects.ts`) are drawn on a transparent overlay canvas above the board, so the board itself is never redrawn per frame. The overlay's animation loop runs only while an effect is in progress; between effects an idle timer (every 1.2 to 2.8 s) schedules the next glint and twinkle. Animations are off when the device requests reduced motion, and in Plain Jane.
+
+| Effect | When | Look |
+|---|---|---|
+| Board cascade | The opening creates the board | Sockets appear in a wave spreading from the opening tile (900 px/s, about a second), each flashing gold as it appears |
+| Gem pop | A stone is placed | White flash over the gem, a glow ring in the gem's color expanding outward, sparks at its corners (0.32 s) |
+| Capture shatter | Stones are captured | Each captured gem breaks into 8 shards that fly outward, spin and fall, with gold sparkles; a "+N" in the capturer's color floats up (about 1 s) |
+| Glints | Idle | A random gem catches the light: a bright band sweeps across it; a background speck not covered by the board twinkles |
 
 ## 8. Controls and Layout
 
