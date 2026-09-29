@@ -3,8 +3,28 @@ import { RotateCw, Play, SkipForward, RotateCcw, CircleHelp, X } from 'lucide-re
 import { buildBoard } from './penrose-board';
 import { opponentOf, playMove, positionKey, scoreArea } from './go-engine';
 
-// How long the computer thinks per move
-const AI_THINK_MS = 1500;
+// How long the computer may think per move, in seconds. The choice is
+// remembered in this browser (localStorage) and defaults to 3.
+const THINK_OPTIONS = [1, 3, 5, 10];
+const DEFAULT_THINK_SECONDS = 3;
+const THINK_STORAGE_KEY = 'penrogo.thinkSeconds';
+
+const loadThinkSeconds = () => {
+  try {
+    const v = Number(localStorage.getItem(THINK_STORAGE_KEY));
+    return THINK_OPTIONS.includes(v) ? v : DEFAULT_THINK_SECONDS;
+  } catch {
+    return DEFAULT_THINK_SECONDS;
+  }
+};
+
+const saveThinkSeconds = (v) => {
+  try {
+    localStorage.setItem(THINK_STORAGE_KEY, String(v));
+  } catch {
+    // Storage unavailable (e.g. private mode): the choice lasts this visit
+  }
+};
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 const TILE_SIZE = 60;
@@ -130,6 +150,7 @@ const drawStar = (ctx, c) => {
 const PenroseTerritoryGame = () => {
   const canvasRef = useRef(null);
   const [mode, setMode] = useState('ai'); // 'ai' (vs computer) or 'two'
+  const [thinkSeconds, setThinkSeconds] = useState(loadThinkSeconds);
   const [gameStarted, setGameStarted] = useState(false);
   const [board, setBoard] = useState(null); // tiles, created by the opening move
   const [stones, setStones] = useState([]);
@@ -280,7 +301,7 @@ const PenroseTerritoryGame = () => {
       history: [...history],
       player: 2,
       opponentPassed: passes > 0,
-      timeMs: AI_THINK_MS
+      timeMs: thinkSeconds * 1000
     });
 
     return () => worker.terminate();
@@ -570,6 +591,24 @@ const PenroseTerritoryGame = () => {
                   vs Computer
                 </button>
               </div>
+              {mode === 'ai' && (
+                <label className="text-slate-300 text-sm flex items-center gap-2">
+                  Computer thinks
+                  <select
+                    value={thinkSeconds}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setThinkSeconds(v);
+                      saveThinkSeconds(v);
+                    }}
+                    className="bg-slate-700 text-white rounded-lg px-2 py-2"
+                  >
+                    {THINK_OPTIONS.map(s => (
+                      <option key={s} value={s}>{s} s</option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <button
                 onClick={initGame}
                 className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 font-semibold"
@@ -709,7 +748,7 @@ const PenroseTerritoryGame = () => {
             </div>
             <p className="mb-3">Go, played on a Penrose tiling of kites and darts.</p>
             <ul className="list-disc list-inside space-y-2">
-              <li>Choose 2 Players or vs Computer (the computer plays red), then press Start</li>
+              <li>Choose 2 Players or vs Computer (the computer plays red), then press Start. Against the computer you can also choose how long it thinks per move: longer thinking makes it stronger</li>
               <li>
                 Player 1 places the first tile anywhere, as a kite or dart at any rotation
                 {isTouchDevice

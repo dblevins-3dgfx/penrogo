@@ -44,7 +44,7 @@ Verified: every tile has exact kite or dart geometry, there are no vertex-colori
 
 ## 6. Computer Opponent
 
-Plays Player 2 in vs Computer mode, using Monte Carlo tree search (`go-engine.ts`), run in a Web Worker (`ai-worker.ts`) so the page stays responsive. It thinks for 1.5 s per move (`AI_THINK_MS`), on the device running the browser.
+Plays Player 2 in vs Computer mode, using Monte Carlo tree search (`go-engine.ts`), run in a Web Worker (`ai-worker.ts`) so the page stays responsive. It thinks for a chosen time per move, on the device running the browser: 1, 3 (default), 5 or 10 seconds, picked on the start screen when vs Computer is selected ("Computer thinks"). Longer thinking means more playouts and stronger play. The choice is remembered in the browser's localStorage and applies from the next game.
 
 - **Search.** Each iteration walks down a tree of candidate moves, adds one new node, then finishes the game with a fast random playout, and records who won by area. Moves are chosen in the tree by UCT combined with RAVE (a move also gets credit when it is played later in the same playout), which learns quickly from few playouts. The most-visited root move is played.
 - **Playouts** use a light policy: capture the stone just played if it is in atari, save its own groups put in atari by that move, otherwise play a random legal move that neither fills its own eye nor puts itself in atari. Playouts use simple ko and no superko; the root moves are checked against the full rules (superko).
