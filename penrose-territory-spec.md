@@ -61,7 +61,7 @@ A candidate placement is legal only if all of the following hold. Checks apply t
 2. **Vertex color agreement.** Wherever a candidate vertex coincides with an existing vertex, the two colors must match. This is Penrose's vertex-coloring matching rule: any point shared by several tiles must be the same color on each.
 3. **No overlap.** The candidate's triangles must not intersect any existing tile's triangles. Separating-axis test with a 1.5 px tolerance, so touching edges and vertices are allowed.
 
-4. **Inside the playfield.** Every vertex of the candidate must lie within the 800 x 600 board (0.5 px tolerance). This applies to the computer's moves as well. The opening kite is placed at the center. While the previewed tile has a vertex outside the board, a red border is drawn around the playfield (the preview is also shown in the blocked red dashed style, and clicking does nothing).
+4. **Inside the playfield.** Every vertex of the candidate must lie within the 800 x 600 board (0.5 px tolerance). This applies to the computer's moves as well, and to the opening tile. While the previewed tile has a vertex outside the board, a red border is drawn around the playfield (the preview is also shown in the blocked red dashed style, and clicking does nothing).
 
 Source for the coloring rule: arXiv 1104.3811 (kite: 144 deg vertex and its opposite black, other two white; dart: 216 deg vertex and its opposite white, other two black).
 
@@ -93,7 +93,7 @@ While placing, the tile snaps so one of its edges lies exactly on an existing ed
 
 Before starting, choose a mode: **2 Players** (two humans share the device) or **vs Computer** (default; the human is Player 1 in blue, the computer is Player 2 in red). The mode is fixed once the game starts; **New Game** returns to the mode screen.
 
-1. Press **Start Game**. A kite (rotation 0, Player 1) is placed at the canvas center. Player 2 moves next (in vs Computer mode the computer moves immediately).
+1. Press **Start Game**. The board starts empty and Player 1 (the human in vs Computer mode) places the opening tile: kite or dart, any rotation, anywhere inside the board. Player 2 moves next. If Player 1 skips instead, the computer opens with a kite (rotation 0) at the board center.
 2. On a turn the current player chooses **Kite** or **Dart**, rotates it, positions it, and places it.
 3. After a successful placement, turns alternate and the rotation resets to 0.
 4. **Skip Turn** passes to the other player.
@@ -123,7 +123,7 @@ It looks one move ahead only, so it will not anticipate an opponent's capture on
 | Preview outline | Solid green if placement is legal, dashed red if blocked |
 | Connected edges | Edges shared by two placed tiles, with colors agreeing at both endpoints, are stroked green (4 px, round caps) |
 | Grid | Light 40 px background grid |
-| Last move | A glowing gold outline drawn on top of everything else, around the whole area the most recent move (by either player, including the computer) affected: the tile just placed, every tile it flipped, and any empty space it newly enclosed as territory. Interior edges between those parts are not outlined, so a capture reads as one gold region. A gold star marks the tile just placed. With no capture it is just that tile's outline. The opening kite is not marked |
+| Last move | A glowing gold outline drawn on top of everything else, around the whole area the most recent move (by either player, including the computer) affected: the tile just placed, every tile it flipped, and any empty space it newly enclosed as territory. Interior edges between those parts are not outlined, so a capture reads as one gold region. A gold star marks the tile just placed. With no capture it is just that tile's outline |
 | Safety view | Optional toggle. Colors each tile's cells by the capture test: yellow = connects to open space without crossing the opponent's tiles (safe), purple = walled in. A tile is captured only if none of it is yellow. Uses the same flood fill as capture, so it shows the exact escape route |
 
 ## 8. Controls

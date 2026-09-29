@@ -650,6 +650,11 @@ const evaluateMove = (allTiles, cand, player) => {
 };
 
 const chooseComputerMove = (allTiles, terr, player) => {
+  // Opening on an empty board (the human skipped the first move)
+  if (allTiles.length === 0) {
+    return { type: 'kite', x: BOARD_W / 2, y: BOARD_H / 2, rotation: 0 };
+  }
+
   let moves = generateMoves(allTiles, terr, player);
   if (moves.length === 0) return null;
 
@@ -726,24 +731,13 @@ const PenroseTerritoryGame = () => {
     return { player1: pts[1], player2: pts[2] };
   }, [tiles, territory]);
 
+  // The board starts empty: Player 1 opens with any tile, at any rotation
+  // and position on the board.
   const initGame = () => {
-    const canvas = canvasRef.current;
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-
-    const startTile = {
-      type: 'kite',
-      x: centerX,
-      y: centerY,
-      rotation: 0,
-      player: 1,
-      id: 0
-    };
-
-    setTiles([startTile]);
+    setTiles([]);
     setGameStarted(true);
-    setCurrentPlayer(2);
-    setStatusMsg('');
+    setCurrentPlayer(1);
+    setStatusMsg('Place the first tile anywhere on the board.');
   };
 
   const resetGame = () => {
@@ -1381,7 +1375,7 @@ const PenroseTerritoryGame = () => {
           <strong className="text-white">How to Play:</strong>
           <ul className="list-disc list-inside mt-2 space-y-1">
             <li>Choose 2 Players or vs Computer (the computer plays red), then press Start</li>
-            <li>Players alternate placing kite or dart tiles edge-to-edge</li>
+            <li>Player 1 places the first tile anywhere; then players alternate placing kite or dart tiles edge-to-edge</li>
             <li>Rotate with the buttons or Left/Right arrow keys (36° steps)</li>
             <li>Green preview outline = valid Penrose-matched placement; red dashed = blocked</li>
             <li>Surround an area completely and it is yours: enemy tiles inside flip to your color</li>
