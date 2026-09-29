@@ -38,6 +38,7 @@ Then open http://localhost:5173. The dev server also listens on your local netwo
   - `canvas-utils.ts`: drawing helpers any skin may use
   - `plain-jane/`: flat colors on a white board
   - `dazzle/`: Bejeweled-inspired gems (`gems.ts`), with animations on an overlay canvas (`effects.ts`)
+  - `stained-glass/`: a leaded window of cobalt and ruby glass (`glass.ts`), with a sweeping sunbeam and shattering captures (`effects.ts`)
   - `kites-and-darts/`: silk kites and metal darts in a sky (`pieces.ts`), with wind, fluttering ribbon and fletching, and glint animations (`effects.ts`)
 - `src/main.tsx`, `src/index.css`, `index.html`: Vite entry point and Tailwind setup
 
