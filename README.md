@@ -38,6 +38,7 @@ Then open http://localhost:5173. The dev server also listens on your local netwo
   - `canvas-utils.ts`: drawing helpers any skin may use
   - `plain-jane/`: flat colors on a white board
   - `dazzle/`: Bejeweled-inspired gems (`gems.ts`), with animations on an overlay canvas (`effects.ts`)
+  - `kites-and-darts/`: silk kites and metal darts in a sky
 - `src/main.tsx`, `src/index.css`, `index.html`: Vite entry point and Tailwind setup
 
 ## Adding a skin
@@ -46,4 +47,6 @@ Then open http://localhost:5173. The dev server also listens on your local netwo
 2. Optionally add animations with `createEffects()`, returning an object that implements `SkinEffects`: it gets an overlay canvas plus events (stone placed, stones captured, board created) and can take over drawing the last move and the hover preview. `skins/dazzle/effects.ts` is a full example.
 
 That's all: the skin appears in the picker automatically, and no other file needs to change. `skins/plain-jane/index.ts` is the simplest example to copy.
+
+If the dev server was already running when you created the folder, Tailwind may not have picked up the new skin's classes yet (the page colors look missing): restart the dev server or re-save `src/index.css`. Production builds are unaffected.
 
