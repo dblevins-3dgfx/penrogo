@@ -1,6 +1,6 @@
 # Penrogo (Penrose Go): Specification
 
-Status: experimental branch `penrose-go`. Reflects the game as currently implemented (`PenroseTerritoryGame` in `penrose-territory.tsx`, board generation in `penrose-board.ts`).
+Status: experimental branch `penrose-go`. Reflects the game as currently implemented (`PenroseTerritoryGame` in `penrose-territory.tsx`, board generation in `penrose-board.ts`, rules and computer players in `go-engine.ts`).
 
 ## 1. Overview
 
@@ -44,12 +44,15 @@ Verified: every tile has exact kite or dart geometry, there are no vertex-colori
 
 ## 6. Computer Opponent
 
-Plays Player 2 in vs Computer mode, one move ahead:
+Plays Player 2 in vs Computer mode, using Monte Carlo tree search (`go-engine.ts`), run in a Web Worker (`ai-worker.ts`) so the page stays responsive. It thinks for 1.5 s per move (`AI_THINK_MS`), on the device running the browser.
 
-- **Candidates.** Every legal move except filling its own eye (an empty tile whose neighbors are all its own stones).
-- **Evaluation.** Stones held (+1 each, -1 per opponent stone), plus influence: each empty tile within 3 steps counts +1 or -1 for the player whose stones are nearer. Own groups left in atari (one liberty) cost twice their size; opponent groups in atari add half their size. A tiny random term varies play.
-- **Passing.** It passes when no move improves on the current evaluation, or when the human has just passed and it is ahead by area score.
-- **Timing.** Moves after a 0.4 s pause ("Computer is thinking...").
+- **Search.** Each iteration walks down a tree of candidate moves, adds one new node, then finishes the game with a fast random playout, and records who won by area. Moves are chosen in the tree by UCT combined with RAVE (a move also gets credit when it is played later in the same playout), which learns quickly from few playouts. The most-visited root move is played.
+- **Playouts** use a light policy: capture the stone just played if it is in atari, save its own groups put in atari by that move, otherwise play a random legal move that neither fills its own eye nor puts itself in atari. Playouts use simple ko and no superko; the root moves are checked against the full rules (superko).
+- **Priors.** New moves start with virtual results from the same tactics: capturing is favored, saving a group in atari next, playing next to the last move slightly, and self-atari is discouraged.
+- **Speed.** A board of typed arrays with liberty scans that stop as soon as the answer is known: about 1,000 playouts per second on a Raspberry Pi 5.
+- **Passing.** It passes when it has no move that is not an own-eye fill, or when the human has just passed and it is ahead by area score.
+
+The original one-move-lookahead heuristic player is kept in `go-engine.ts` (`chooseHeuristicMove`) as a baseline for testing.
 
 ## 7. Visual Feedback
 
@@ -69,7 +72,8 @@ Same as `main`: mouse click to place; the scroll wheel, right-click (Shift for t
 
 ## 9. Known Limitations
 
-- The computer looks only one move ahead and understands life and death only through atari; it can be tricked into losing groups.
+- The computer's strength depends on the device: slower devices get fewer playouts in the same thinking time.
+- Area scoring counts every stone on the board, so dead stones must be captured before passing.
 - No komi, handicap, undo, or save/load.
 - Clipping to the rectangular board leaves ragged edges with some tiles having only 1 to 3 neighbors.
 - Not yet tested on a physical touch device.

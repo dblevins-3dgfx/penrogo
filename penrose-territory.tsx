@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { RotateCw, Play, SkipForward, RotateCcw, CircleHelp, X } from 'lucide-react';
 import { buildBoard } from './penrose-board';
+import { opponentOf, playMove, positionKey, scoreArea } from './go-engine';
+
+// How long the computer thinks per move
+const AI_THINK_MS = 1500;
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 const TILE_SIZE = 60;
@@ -88,179 +92,6 @@ const isOutsidePlayfield = (verts) => {
 // Index of the board tile containing (x, y), or -1.
 const tileAtPoint = (tiles, x, y) =>
   tiles.findIndex(t => toTriangles(t.verts).some(tri => pointInTriangle(x, y, tri)));
-
-// ---------------------------------------------------------------------
-// Go rules on the tile graph
-//
-// The board is a Penrose tiling generated around the opening tile. Tiles
-// are the points of a Go board: two tiles are adjacent when they share an
-// edge (interior tiles have exactly four neighbors). `stones[i]` is 0 for
-// an empty tile, or the player (1 or 2) who holds it.
-// ---------------------------------------------------------------------
-
-const opponentOf = (p) => (p === 1 ? 2 : 1);
-
-// The connected group of same-colored stones containing `start`, and its
-// liberties (empty tiles adjacent to the group).
-const groupAt = (tiles, stones, start) => {
-  const color = stones[start];
-  const members = [start];
-  const seen = new Set(members);
-  const liberties = new Set();
-  for (let k = 0; k < members.length; k++) {
-    for (const n of tiles[members[k]].neighbors) {
-      if (stones[n] === 0) liberties.add(n);
-      else if (stones[n] === color && !seen.has(n)) {
-        seen.add(n);
-        members.push(n);
-      }
-    }
-  }
-  return { members, liberties };
-};
-
-const positionKey = (stones) => stones.join('');
-
-// Plays `player` on tile `id`. Opponent groups left without liberties are
-// removed; a move that leaves its own group without liberties (suicide) or
-// repeats an earlier position (superko) is illegal.
-const playMove = (tiles, stones, history, id, player) => {
-  if (stones[id] !== 0) return { ok: false, reason: 'That tile is taken.' };
-
-  const next = stones.slice();
-  next[id] = player;
-  const opp = opponentOf(player);
-  let captured = 0;
-  for (const n of tiles[id].neighbors) {
-    if (next[n] !== opp) continue;
-    const g = groupAt(tiles, next, n);
-    if (g.liberties.size === 0) {
-      for (const m of g.members) next[m] = 0;
-      captured += g.members.length;
-    }
-  }
-
-  if (groupAt(tiles, next, id).liberties.size === 0) {
-    return { ok: false, reason: 'Illegal: that tile would have no liberties (suicide).' };
-  }
-  if (history.has(positionKey(next))) {
-    return { ok: false, reason: 'Illegal: that would repeat an earlier position (ko).' };
-  }
-  return { ok: true, stones: next, captured };
-};
-
-// Area scoring: each player's stones plus the empty regions bordered only
-// by that player's stones. Also returns the owner of every empty tile.
-const scoreArea = (tiles, stones) => {
-  const owner = new Array(tiles.length).fill(0);
-  const score = { 1: 0, 2: 0 };
-  stones.forEach(s => { if (s) score[s] += 1; });
-
-  const seen = new Set();
-  for (let i = 0; i < tiles.length; i++) {
-    if (stones[i] !== 0 || seen.has(i)) continue;
-    const region = [i];
-    seen.add(i);
-    const borders = new Set<number>();
-    for (let k = 0; k < region.length; k++) {
-      for (const n of tiles[region[k]].neighbors) {
-        if (stones[n] === 0) {
-          if (!seen.has(n)) { seen.add(n); region.push(n); }
-        } else {
-          borders.add(stones[n]);
-        }
-      }
-    }
-    if (borders.size === 1) {
-      const p = [...borders][0];
-      score[p] += region.length;
-      for (const r of region) owner[r] = p;
-    }
-  }
-  return { score, owner };
-};
-
-// ---------------------------------------------------------------------
-// Computer opponent
-//
-// Looks one move ahead. Each legal move is scored by the resulting stone
-// count plus an influence estimate (every empty tile within 3 steps counts
-// for the nearer player), minus twice the size of its own groups left in
-// atari (one liberty: likely lost, along with the area they claimed), plus
-// a little for opponent groups put in atari. With those weights, filling
-// its own area or a hopeless invasion gains nothing, so it passes once no
-// move improves the position. It never fills its own eyes, and it also
-// passes when the human has passed and it is ahead on the board.
-// ---------------------------------------------------------------------
-
-const INFLUENCE_RANGE = 3;
-
-const evaluate = (tiles, stones, player) => {
-  const opp = opponentOf(player);
-  const dist = { 1: new Array(tiles.length).fill(Infinity), 2: new Array(tiles.length).fill(Infinity) };
-  for (const p of [1, 2]) {
-    const queue = [];
-    stones.forEach((s, i) => { if (s === p) { dist[p][i] = 0; queue.push(i); } });
-    for (let k = 0; k < queue.length; k++) {
-      const i = queue[k];
-      if (dist[p][i] >= INFLUENCE_RANGE) continue;
-      for (const n of tiles[i].neighbors) {
-        if (stones[n] === 0 && dist[p][n] === Infinity) {
-          dist[p][n] = dist[p][i] + 1;
-          queue.push(n);
-        }
-      }
-    }
-  }
-
-  let value = 0;
-  for (let i = 0; i < tiles.length; i++) {
-    if (stones[i] === player) value += 1;
-    else if (stones[i] === opp) value -= 1;
-    else if (dist[player][i] < dist[opp][i]) value += 1;
-    else if (dist[opp][i] < dist[player][i]) value -= 1;
-  }
-
-  const seen = new Set();
-  for (let i = 0; i < tiles.length; i++) {
-    if (stones[i] === 0 || seen.has(i)) continue;
-    const g = groupAt(tiles, stones, i);
-    g.members.forEach(m => seen.add(m));
-    if (g.liberties.size === 1) {
-      value += stones[i] === player ? -2 * g.members.length : 0.5 * g.members.length;
-    }
-  }
-  return value;
-};
-
-const isOwnEye = (tiles, stones, id, player) =>
-  tiles[id].neighbors.every(n => stones[n] === player);
-
-// Returns a tile id to play, or null to pass.
-const chooseComputerMove = (tiles, stones, history, player, opponentPassed) => {
-  if (opponentPassed) {
-    const { score } = scoreArea(tiles, stones);
-    if (score[player] > score[opponentOf(player)]) return null;
-  }
-
-  const current = evaluate(tiles, stones, player);
-  let best = null;
-  let bestValue = -Infinity;
-  for (let id = 0; id < tiles.length; id++) {
-    if (stones[id] !== 0 || isOwnEye(tiles, stones, id, player)) continue;
-    const r = playMove(tiles, stones, history, id, player);
-    if (!r.ok) continue;
-    const v = evaluate(tiles, r.stones, player) + Math.random() * 0.01;
-    if (v > bestValue) {
-      bestValue = v;
-      best = id;
-    }
-  }
-
-  // Pass when no move improves the position
-  if (best === null || bestValue <= current + 0.05) return null;
-  return best;
-};
 
 // ---------------------------------------------------------------------
 // Drawing
@@ -422,23 +253,37 @@ const PenroseTerritoryGame = () => {
     setCurrentPlayer(opponentOf(player));
   };
 
-  // The computer's turn: open the board if needed, otherwise play the best
-  // move found or pass.
+  // The computer's turn: open the board if needed, otherwise search for a
+  // move in a background worker (go-engine's Monte Carlo player) and play
+  // it, or pass. The worker is discarded if the turn is abandoned (e.g. New
+  // Game), so a stale answer can never be played.
   useEffect(() => {
     if (!gameStarted || gameOver || !isComputerTurn) return;
 
     setStatusMsg('Computer is thinking…');
-    const timer = setTimeout(() => {
-      if (!board) {
+    if (!board) {
+      const timer = setTimeout(() => {
         placeOpening({ type: 'kite', x: BOARD_W / 2, y: BOARD_H / 2, rotation: 0 }, 2);
-        return;
-      }
-      const id = chooseComputerMove(tiles, stones, history, 2, passes > 0);
-      if (id === null) pass(2);
-      else claimTile(id, 2);
-    }, 400);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
 
-    return () => clearTimeout(timer);
+    const worker = new Worker(new URL('./ai-worker.ts', import.meta.url), { type: 'module' });
+    worker.onmessage = (e) => {
+      const { move } = e.data;
+      if (move === null) pass(2);
+      else claimTile(move, 2);
+    };
+    worker.postMessage({
+      neighbors: tiles.map(t => t.neighbors),
+      stones,
+      history: [...history],
+      player: 2,
+      opponentPassed: passes > 0,
+      timeMs: AI_THINK_MS
+    });
+
+    return () => worker.terminate();
   }, [gameStarted, gameOver, isComputerTurn, board, stones]);
 
   // Rotation controls (only matter for the opening tile)

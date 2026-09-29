@@ -28,6 +28,8 @@ Then open http://localhost:5174 (this branch uses port 5174 so it can run next t
 
 ## Layout
 
-- `penrose-territory.tsx`: the game, a single React component (rules, computer opponent, drawing, controls)
+- `penrose-territory.tsx`: the game component (state, drawing, controls)
+- `go-engine.ts`: Go rules on the tile graph and the computer players (Monte Carlo tree search, plus the older heuristic player as a baseline)
+- `ai-worker.ts`: runs the computer's search in a Web Worker
 - `penrose-board.ts`: Penrose tiling generation and the tile adjacency graph
 - `src/main.tsx`, `src/index.css`, `index.html`: Vite entry point and Tailwind setup
