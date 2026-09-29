@@ -10,10 +10,11 @@ A two-player, turn-based tile placement game played with Penrose kite and dart t
 
 | Item | Choice |
 |---|---|
-| Framework | React (functional component, hooks) |
+| Framework | React 19 (functional component, hooks) |
+| Build | Vite, TypeScript (the component itself is untyped; `npm run typecheck` is separate from the build) |
 | Rendering | HTML5 Canvas 2D, 800 x 600 internal resolution, scaled to container width |
-| Styling | Tailwind core utility classes |
-| Icons | lucide-react (`RotateCw`, `Play`, `SkipForward`) |
+| Styling | Tailwind CSS v4 utility classes |
+| Icons | lucide-react (`RotateCw`, `RotateCcw`, `Play`, `SkipForward`) |
 | Persistence | None (all state in memory) |
 
 ## 3. Tile Geometry
@@ -151,17 +152,14 @@ Implementation notes: pointer events (`pointerdown/move/up/leave`), `touch-actio
 ## 9. Known Limitations and Not Yet Implemented
 
 - **Capture edge cases.** Enclosure uses 4-connected flood fill on a 3 px grid, so a region open to the outside only through a single touching corner counts as enclosed. There is no ko-style repetition rule, and territory is not required to be fillable by legal tiles.
-- **End of game.** No detection of "no valid moves remain", no win condition. The on-screen instructions mention it, but it is not implemented.
+- **End of game.** No detection of "no valid moves remain", no win condition.
 - **Rule completeness.** The rules combine vertex coloring with an edge-direction/length check. They have not been proven to prevent every dead-end configuration, and vertex-only contacts are not snapped (only edge-to-edge snapping exists).
 - **Performance.** Connected-edge detection and placement checks are O(n^2) over placed tiles per render; fine for dozens of tiles, not for hundreds.
-- **No undo, save/load, or AI opponent.**
+- **No undo or save/load.** The computer opponent looks only one move ahead (section 6b).
 - **Mobile.** Touch support has not been tested on a physical device; the 60-unit finger offset may need tuning.
-- **Repository.** Code has not been committed to a repository (no GitHub connector was available).
 
 ## 10. Possible Next Steps
 
-1. Territory scoring (for example, area enclosed by or adjacent to each player's tiles).
-2. Move-availability detection and game end.
-3. "Show valid placements" hint mode.
-4. Undo, AI opponent, sound and animation.
-5. Standalone Vite project with README (see repository setup notes).
+1. Move-availability detection and game end.
+2. "Show valid placements" hint mode.
+3. Undo, a stronger computer opponent, sound and animation.
