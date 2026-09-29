@@ -32,6 +32,18 @@ Then open http://localhost:5173. The dev server also listens on your local netwo
 - `go-engine.ts`: Go rules on the tile graph and the computer players (Monte Carlo tree search, plus the older heuristic player as a baseline)
 - `ai-worker.ts`: runs the computer's search in a Web Worker
 - `penrose-board.ts`: Penrose tiling generation and the tile adjacency graph
-- `skins.ts`: visual skins (Plain Jane, Dazzle): page colors and how the board is drawn
-- `dazzle-effects.ts`: Dazzle's animations (board cascade, gem pop, capture shatter, glints, pulsing last move, floating preview) on an overlay canvas
+- `skins/`: visual skins, one folder each, found automatically
+  - `types.ts`: the `Skin` and `SkinEffects` interfaces every skin implements
+  - `index.ts`: the registry (discovers `skins/*/index.ts`)
+  - `canvas-utils.ts`: drawing helpers any skin may use
+  - `plain-jane/`: flat colors on a white board
+  - `dazzle/`: Bejeweled-inspired gems (`gems.ts`), with animations on an overlay canvas (`effects.ts`)
 - `src/main.tsx`, `src/index.css`, `index.html`: Vite entry point and Tailwind setup
+
+## Adding a skin
+
+1. Create a folder `skins/<name>/` with an `index.ts` whose default export is a `Skin` (see `skins/types.ts`): an `id`, a `name` for the picker, an optional `order`, Tailwind classes for the page (`chrome`), and four canvas hooks: `drawBackground`, `drawTile`, `drawLastMove` and `drawTarget`.
+2. Optionally add animations with `createEffects()`, returning an object that implements `SkinEffects`: it gets an overlay canvas plus events (stone placed, stones captured, board created) and can take over drawing the last move and the hover preview. `skins/dazzle/effects.ts` is a full example.
+
+That's all: the skin appears in the picker automatically, and no other file needs to change. `skins/plain-jane/index.ts` is the simplest example to copy.
+

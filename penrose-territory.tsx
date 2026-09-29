@@ -3,7 +3,7 @@ import { RotateCw, Play, SkipForward, RotateCcw, CircleHelp, X, Palette } from '
 import { buildBoard } from './penrose-board';
 import { opponentOf, playMove, positionKey, scoreArea } from './go-engine';
 import { SKINS, DEFAULT_SKIN, skinById } from './skins';
-import { DazzleEffects } from './dazzle-effects';
+import type { Player } from './skins/types';
 
 // The chosen skin is remembered in this browser (localStorage).
 const SKIN_STORAGE_KEY = 'penrogo.skin';
@@ -150,16 +150,22 @@ const PenroseTerritoryGame = () => {
   const [skinId, setSkinId] = useState(loadSkin);
   const skin = skinById(skinId);
 
-  // Animated effects (Dazzle) on an overlay canvas above the board, unless
-  // the device asks for reduced motion.
+  // The skin's animated effects, if it has any, on an overlay canvas above
+  // the board, unless the device asks for reduced motion. `fx` is null
+  // without effects; its event methods are optional (see skins/types.ts).
   const overlayRef = useRef(null);
-  const effectsRef = useRef(null);
-  if (!effectsRef.current) effectsRef.current = new DazzleEffects();
   const reducedMotion = useMemo(
     () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
     []
   );
-  const effectsOn = !!skin.effects && !reducedMotion;
+  const fx = useMemo(
+    () => (skin.createEffects && !reducedMotion ? skin.createEffects() : null),
+    [skin, reducedMotion]
+  );
+  const effectsOn = !!fx;
+  // Effects that take over drawing the last move / the legal preview
+  const fxDrawsLastMove = !!fx?.setLastMove;
+  const fxDrawsTarget = !!fx?.setTarget;
 
   const tiles = board ? board.tiles : null;
   const isComputerTurn = mode === 'ai' && currentPlayer === 2;
@@ -177,20 +183,19 @@ const PenroseTerritoryGame = () => {
   }, [showHelp]);
 
   useEffect(() => {
-    if (!effectsOn || !overlayRef.current) return;
-    const fx = effectsRef.current;
+    if (!fx || !overlayRef.current) return;
     fx.attach(overlayRef.current);
     return () => fx.detach();
-  }, [effectsOn]);
+  }, [fx]);
 
   useEffect(() => {
-    effectsRef.current.setBoard(tiles, stones);
-  }, [board, stones]);
+    fx?.setBoard?.(tiles, stones);
+  }, [fx, board, stones]);
 
   useEffect(() => {
-    const show = effectsOn && board && lastMove !== null && stones[lastMove];
-    effectsRef.current.setLastMove(show ? tiles[lastMove].verts : null);
-  }, [effectsOn, board, stones, lastMove]);
+    const show = board && lastMove !== null && stones[lastMove];
+    fx?.setLastMove?.(show ? tiles[lastMove].verts : null);
+  }, [fx, board, stones, lastMove]);
 
   // Live score is stones on the board; at the end it is area (stones plus
   // surrounded empty tiles).
@@ -232,8 +237,8 @@ const PenroseTerritoryGame = () => {
     const { tiles: newTiles, opening } = buildBoard(cand.type, verts, BOARD_W, BOARD_H, TILE_SIZE);
     const newStones = new Array(newTiles.length).fill(0);
     newStones[opening] = player;
-    effectsRef.current.cascade(newTiles, verts);
-    effectsRef.current.place(verts, player);
+    fx?.cascade?.(newTiles, verts);
+    fx?.place?.(verts, player);
     setBoard({ tiles: newTiles });
     setStones(newStones);
     setHistory(new Set([positionKey(newStones)]));
@@ -253,8 +258,8 @@ const PenroseTerritoryGame = () => {
     }
     const opp = opponentOf(player);
     const lost = stones.map((s, i) => (s === opp && r.stones[i] === 0 ? i : -1)).filter(i => i >= 0);
-    effectsRef.current.place(tiles[id].verts, player);
-    if (lost.length) effectsRef.current.capture(lost.map(i => tiles[i].verts), opp, player);
+    fx?.place?.(tiles[id].verts, player);
+    if (lost.length) fx?.capture?.(lost.map(i => tiles[i].verts), opp, player);
     setStones(r.stones);
     setHistory(prev => new Set(prev).add(positionKey(r.stones)));
     setLastMove(id);
@@ -422,13 +427,13 @@ const PenroseTerritoryGame = () => {
       tiles.forEach((t, i) => {
         skin.drawTile(ctx, t.verts, { stone: stones[i], territory: territory ? territory[i] : 0 });
       });
-      // With effects on, the overlay animates the last move instead
-      if (lastMove !== null && stones[lastMove] && !effectsOn) skin.drawLastMove(ctx, tiles[lastMove].verts);
+      // Unless the skin's effects draw (and animate) it on the overlay
+      if (lastMove !== null && stones[lastMove] && !fxDrawsLastMove) skin.drawLastMove(ctx, tiles[lastMove].verts);
     }
 
     if (target) {
-      // With effects on, the overlay floats a legal preview instead
-      if (!(effectsOn && target.legal)) skin.drawTarget(ctx, target.verts, currentPlayer, target.legal);
+      // A legal preview may be drawn by the skin's effects instead
+      if (!(fxDrawsTarget && target.legal)) skin.drawTarget(ctx, target.verts, currentPlayer as Player, target.legal);
 
       // Red border while the opening tile would stick out of the board
       if (target.kind === 'opening' && !target.legal) {
@@ -439,12 +444,12 @@ const PenroseTerritoryGame = () => {
         ctx.restore();
       }
     }
-  }, [board, stones, lastMove, gameOver, target, currentPlayer, skin, effectsOn]);
+  }, [board, stones, lastMove, gameOver, target, currentPlayer, skin, fxDrawsLastMove, fxDrawsTarget]);
 
   useEffect(() => {
-    const show = effectsOn && target && target.legal;
-    effectsRef.current.setTarget(show ? { verts: target.verts, player: currentPlayer } : null);
-  }, [effectsOn, target, currentPlayer]);
+    const show = target && target.legal;
+    fx?.setTarget?.(show ? { verts: target.verts, player: currentPlayer as Player } : null);
+  }, [fx, target, currentPlayer]);
 
   // Touch devices have no hover, so the preview follows a finger drag and
   // is lifted above the fingertip so it isn't hidden under it.

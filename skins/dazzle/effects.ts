@@ -18,10 +18,9 @@
 // The last move and the preview are persistent: while either is shown the
 // loop keeps running, capped at PERSISTENT_FPS when nothing else moves.
 
-import {
-  GEMS, LIGHT, BG_SPARKLES, centroidOf, tracePolygon, drawSparkle,
-  drawDazzleBackground, drawGem, mix, rgb
-} from './skins';
+import type { SkinEffects } from '../types';
+import { centroidOf, tracePolygon, drawSparkle, mix, rgb } from '../canvas-utils';
+import { GEMS, LIGHT, BG_SPARKLES, drawDazzleBackground, drawGem } from './gems';
 
 const POP_MS = 320;
 const SHATTER_MS = 850;
@@ -49,7 +48,7 @@ const pointInPolygon = (x, y, verts) => {
   return inside;
 };
 
-export class DazzleEffects {
+export class DazzleEffects implements SkinEffects {
   canvas = null;
   ctx = null;
   effects = [];

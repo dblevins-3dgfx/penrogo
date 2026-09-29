@@ -67,16 +67,16 @@ The original one-move-lookahead heuristic player is kept in `go-engine.ts` (`cho
 | Game end | Surrounded empty regions tinted in their owner's color |
 | Status line | Captures, passes, illegal-move reasons, and the final result |
 
-## 7b. Skins (`skins.ts`)
+## 7b. Skins (`skins/`)
 
-The look is chosen from a picker in the header, at any time (even mid-game); it never affects play. The choice is remembered in the browser's localStorage. Each skin supplies Tailwind classes for the page chrome and canvas hooks for the background, each tile (stone, empty, or territory at the end), the last move, and the hover/preview target.
+The look is chosen from a picker in the header, at any time (even mid-game); it never affects play. The choice is remembered in the browser's localStorage. Each skin lives in its own folder, `skins/<name>/index.ts`, and is discovered automatically (Vite `import.meta.glob`), so adding one touches no other file. A skin implements the `Skin` interface (`skins/types.ts`): Tailwind classes for the page chrome and canvas hooks for the background, each tile (stone, empty, or territory at the end), the last move, and the hover/preview target. It may also provide `createEffects()`, returning a `SkinEffects` object that animates on an overlay canvas; the game calls its optional event methods (board created, stone placed, stones captured) and lets it take over drawing the last move and the legal preview if it implements `setLastMove` / `setTarget`.
 
 | Skin | Look |
 |---|---|
 | Plain Jane (default) | The table above: flat blue and red on a white board with a light grid |
 | Dazzle | Bejeweled-inspired. Stones are cut gems, sapphire for Player 1 and ruby for Player 2: a table facet plus one side facet per edge, each shaded by how it faces a light at the upper left, with a white glint. Empty tiles are dark sockets with gold rims on a velvet background with fixed gold sparkles. The last move gets a glow and twinkles; the hover preview is a translucent gem with a glowing outline. Page panels are purple with gold rings, and the title is a gold-pink-blue gradient. Animated (see below) |
 
-**Dazzle animations** (`dazzle-effects.ts`) are drawn on a transparent overlay canvas above the board, so the board itself is never redrawn per frame. The overlay's animation loop runs while an effect is in progress or a persistent effect (last move, preview) is shown; with only persistent effects it redraws at 30 frames per second. An idle timer (every 1.2 to 2.8 s) schedules the next glint and twinkle. Animations are off when the device requests reduced motion, and in Plain Jane.
+**Dazzle animations** (`skins/dazzle/effects.ts`) are drawn on a transparent overlay canvas above the board, so the board itself is never redrawn per frame. The overlay's animation loop runs while an effect is in progress or a persistent effect (last move, preview) is shown; with only persistent effects it redraws at 30 frames per second. An idle timer (every 1.2 to 2.8 s) schedules the next glint and twinkle. Animations are off when the device requests reduced motion, and in Plain Jane.
 
 | Effect | When | Look |
 |---|---|---|
