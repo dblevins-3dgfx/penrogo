@@ -54,3 +54,9 @@ That's all: the skin appears in the picker automatically, and no other file need
 
 If the dev server was already running when you created the folder, Tailwind may not have picked up the new skin's classes yet (the page colors look missing): restart the dev server or re-save `src/index.css`. Production builds are unaffected.
 
+## License
+
+Penrogo is released under the [MIT License](LICENSE).
+
+It includes third-party software (React, Lucide icons, Tailwind's generated CSS) under their own permissive licenses; their notices are in [public/THIRD_PARTY_LICENSES.txt](public/THIRD_PARTY_LICENSES.txt), which every build copies next to the game and the How to Play screen links to. After upgrading dependencies, regenerate it with `npm run licenses`.
+

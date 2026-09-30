@@ -775,6 +775,12 @@ const PenroseTerritoryGame = () => {
               <li>Pass when you have nothing useful to play. Two passes in a row end the game</li>
               <li>Score: tiles you hold plus empty areas surrounded only by your tiles. Surrounded areas are tinted when the game ends</li>
             </ul>
+            <p className="mt-4 text-xs text-slate-400">
+              Penrogo is open source under the MIT License.{' '}
+              <a href="THIRD_PARTY_LICENSES.txt" target="_blank" rel="noopener" className="underline hover:text-slate-200">
+                Third-party licenses
+              </a>
+            </p>
           </div>
         </div>
       )}
