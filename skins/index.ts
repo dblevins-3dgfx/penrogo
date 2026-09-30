@@ -3,7 +3,14 @@
 // listed by its `order`, then name.
 import type { Skin } from './types';
 
-export type { Skin, SkinEffects } from './types';
+export type { Skin, SkinEffects, PlayerStyle } from './types';
+import type { PlayerStyle } from './types';
+
+// Player text colors for skins that don't choose their own
+export const DEFAULT_PLAYERS: { 1: PlayerStyle; 2: PlayerStyle } = {
+  1: { text: 'text-blue-400', name: 'blue' },
+  2: { text: 'text-red-400', name: 'red' }
+};
 
 const modules = import.meta.glob<Skin>('./*/index.ts', { eager: true, import: 'default' });
 

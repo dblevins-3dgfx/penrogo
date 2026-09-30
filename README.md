@@ -41,12 +41,13 @@ Then open http://localhost:5173. The dev server also listens on your local netwo
   - `stained-glass/`: a leaded window of cobalt and ruby glass (`glass.ts`), with a sweeping sunbeam and shattering captures (`effects.ts`)
   - `neon-arcade/`: neon tubes on an arcade screen (`neon.ts`), with flicker-on, blink-out, a breathing last move and a CRT roll bar (`effects.ts`)
   - `blueprint/`: a drafting sheet with hatched, dimensioned stones (`drafting.ts`), with pencil draw-in and erasing (`effects.ts`)
+  - `go-classic/`: slate and shell stones on a kaya board (`stones.ts`), set down with a drop and taken as prisoners (`effects.ts`)
   - `kites-and-darts/`: silk kites and metal darts in a sky (`pieces.ts`), with wind, fluttering ribbon and fletching, and glint animations (`effects.ts`)
 - `src/main.tsx`, `src/index.css`, `index.html`: Vite entry point and Tailwind setup
 
 ## Adding a skin
 
-1. Create a folder `skins/<name>/` with an `index.ts` whose default export is a `Skin` (see `skins/types.ts`): an `id`, a `name` for the picker, an optional `order`, Tailwind classes for the page (`chrome`), and four canvas hooks: `drawBackground`, `drawTile`, `drawLastMove` and `drawTarget`.
+1. Create a folder `skins/<name>/` with an `index.ts` whose default export is a `Skin` (see `skins/types.ts`): an `id`, a `name` for the picker, an optional `order`, Tailwind classes for the page (`chrome`), optional `players` colors for the page text (default blue and red), and four canvas hooks: `drawBackground`, `drawTile`, `drawLastMove` and `drawTarget`.
 2. Optionally add animations with `createEffects()`, returning an object that implements `SkinEffects`: it gets an overlay canvas plus events (stone placed, stones captured, board created) and can take over drawing the last move and the hover preview. `skins/dazzle/effects.ts` is a full example.
 
 That's all: the skin appears in the picker automatically, and no other file needs to change. `skins/plain-jane/index.ts` is the simplest example to copy.

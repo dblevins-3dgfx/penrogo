@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { RotateCw, Play, SkipForward, RotateCcw, CircleHelp, X, Palette } from 'lucide-react';
 import { buildBoard } from './penrose-board';
 import { opponentOf, playMove, positionKey, scoreArea } from './go-engine';
-import { SKINS, DEFAULT_SKIN, skinById } from './skins';
+import { SKINS, DEFAULT_SKIN, DEFAULT_PLAYERS, skinById } from './skins';
 import type { Player } from './skins/types';
 
 // The chosen skin is remembered in this browser (localStorage).
@@ -149,6 +149,7 @@ const PenroseTerritoryGame = () => {
   const [showHelp, setShowHelp] = useState(false);
   const [skinId, setSkinId] = useState(loadSkin);
   const skin = skinById(skinId);
+  const players = skin.players || DEFAULT_PLAYERS;
 
   // The skin's animated effects, if it has any, on an overlay canvas above
   // the board, unless the device asks for reduced motion. `fx` is null
@@ -428,7 +429,7 @@ const PenroseTerritoryGame = () => {
         skin.drawTile(ctx, t.verts, { stone: stones[i], territory: territory ? territory[i] : 0 });
       });
       // Unless the skin's effects draw (and animate) it on the overlay
-      if (lastMove !== null && stones[lastMove] && !fxDrawsLastMove) skin.drawLastMove(ctx, tiles[lastMove].verts);
+      if (lastMove !== null && stones[lastMove] && !fxDrawsLastMove) skin.drawLastMove(ctx, tiles[lastMove].verts, stones[lastMove] as Player);
     }
 
     if (target) {
@@ -548,14 +549,14 @@ const PenroseTerritoryGame = () => {
 
         <div className={`${skin.chrome.panel} rounded-lg px-3 py-2 flex justify-around items-center`}>
           <div className="text-center">
-            <div className="text-blue-400 text-xl sm:text-2xl font-bold">{shownScore[1]}</div>
+            <div className={`${players[1].text} text-xl sm:text-2xl font-bold`}>{shownScore[1]}</div>
             <div className="text-slate-400 text-xs sm:text-sm">
               {playerName(1)}{captured[1] > 0 && ` · ${captured[1]} captured`}
             </div>
           </div>
 
           <div className="text-center">
-            <div className={`text-base sm:text-xl font-bold ${gameOver ? 'text-white' : currentPlayer === 1 ? 'text-blue-400' : 'text-red-400'}`}>
+            <div className={`text-base sm:text-xl font-bold ${gameOver ? 'text-white' : players[currentPlayer].text}`}>
               {turnText}
             </div>
             {statusMsg && (
@@ -564,7 +565,7 @@ const PenroseTerritoryGame = () => {
           </div>
 
           <div className="text-center">
-            <div className="text-red-400 text-xl sm:text-2xl font-bold">{shownScore[2]}</div>
+            <div className={`${players[2].text} text-xl sm:text-2xl font-bold`}>{shownScore[2]}</div>
             <div className="text-slate-400 text-xs sm:text-sm">
               {playerName(2)}{captured[2] > 0 && ` · ${captured[2]} captured`}
             </div>
@@ -760,7 +761,7 @@ const PenroseTerritoryGame = () => {
             </div>
             <p className="mb-3">Go, played on a Penrose tiling of kites and darts.</p>
             <ul className="list-disc list-inside space-y-2">
-              <li>Choose 2 Players or vs Computer (the computer plays red), then press Start. Against the computer you can also choose how long it thinks per move: longer thinking makes it stronger</li>
+              <li>Choose 2 Players or vs Computer (the computer plays {players[2].name}), then press Start. Against the computer you can also choose how long it thinks per move: longer thinking makes it stronger</li>
               <li>
                 Player 1 places the first tile anywhere, as a kite or dart at any rotation
                 {isTouchDevice

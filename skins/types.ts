@@ -25,6 +25,13 @@ export interface SkinChrome {
   canvas: string; // the board canvas element
 }
 
+// How a player is shown in the page text (scoreboard, turn indicator, How
+// to Play). Skins that don't set `players` get blue and red.
+export interface PlayerStyle {
+  text: string; // Tailwind text color class(es), e.g. 'text-blue-400'
+  name: string; // color word for the rules text, e.g. 'blue'
+}
+
 // Optional animations, drawn on a transparent overlay canvas (800x600, same
 // coordinates as the board) above the board canvas. The game creates one
 // instance per skin selection and calls these as play happens; every event
@@ -55,11 +62,14 @@ export interface Skin {
   name: string; // shown in the skin picker
   order?: number; // position in the picker (lower first; default 100)
   chrome: SkinChrome;
+  // Player colors in the page text; default blue (1) and red (2)
+  players?: { 1: PlayerStyle; 2: PlayerStyle };
 
   // Canvas hooks, all in 800x600 board coordinates
   drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number): void;
   drawTile(ctx: CanvasRenderingContext2D, verts: Point[], state: TileState): void;
-  drawLastMove(ctx: CanvasRenderingContext2D, verts: Point[]): void;
+  // `player` is who holds the last move's tile
+  drawLastMove(ctx: CanvasRenderingContext2D, verts: Point[], player: Player): void;
   // The tile under the pointer, or the opening tile preview
   drawTarget(ctx: CanvasRenderingContext2D, verts: Point[], player: Player, legal: boolean): void;
 
