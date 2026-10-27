@@ -1,7 +1,12 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useReducer } from 'react';
 import { RotateCw, Play, SkipForward, RotateCcw, CircleHelp, X, Palette } from 'lucide-react';
-import { buildBoard } from './penrose-board';
-import { opponentOf, playMove, positionKey, scoreArea } from './go-engine';
+import { opponentOf, playMove, scoreArea } from './go-engine';
+import { gameReducer, initialGame, isComputerTurn, isHumanTurn, playerName, shownScore, turnText } from './game';
+import {
+  BOARD_H, BOARD_W, COMPUTER_OPENING,
+  candidateVertices, isOutsidePlayfield, rotateStep, tileAtPoint,
+  type TileType
+} from './opening';
 import { SKINS, DEFAULT_SKIN, DEFAULT_PLAYERS, skinById } from './skins';
 import type { Player } from './skins/types';
 
@@ -47,103 +52,12 @@ const saveThinkSeconds = (v) => {
   }
 };
 
-const PHI = (1 + Math.sqrt(5)) / 2;
-const TILE_SIZE = 60;
-
-// Playfield size (matches the canvas).
-const BOARD_W = 800;
-const BOARD_H = 600;
-
-// ---------------------------------------------------------------------
-// Tile geometry (used for the opening tile, which decides the board)
-// ---------------------------------------------------------------------
-
-// Kite: vertices O(72°) -> B(72°) -> C(144°) -> D(72°), edges long, short,
-// short, long. Axis of symmetry through O and C. Centered on the centroid.
-const getKiteVertices = (x, y, rotation) => {
-  const r = rotation * Math.PI / 180;
-  const long = TILE_SIZE;
-  const deg36 = 36 * Math.PI / 180;
-
-  const local = [
-    { x: 0, y: 0 },
-    { x: long * Math.cos(r + deg36), y: long * Math.sin(r + deg36) },
-    { x: long * Math.cos(r), y: long * Math.sin(r) },
-    { x: long * Math.cos(r - deg36), y: long * Math.sin(r - deg36) }
-  ];
-
-  const cx = local.reduce((s, v) => s + v.x, 0) / local.length;
-  const cy = local.reduce((s, v) => s + v.y, 0) / local.length;
-
-  return local.map(v => ({ x: x + v.x - cx, y: y + v.y - cy }));
-};
-
-// Dart: vertices M(72°) -> N(36°) -> A'(216°, reflex) -> N'(36°), edges
-// long, short, short, long. Axis of symmetry through M and A'.
-const getDartVertices = (x, y, rotation) => {
-  const r = rotation * Math.PI / 180;
-  const long = TILE_SIZE;
-  const deg36 = 36 * Math.PI / 180;
-
-  const local = [
-    { x: 0, y: 0 },
-    { x: long * Math.cos(r + deg36), y: long * Math.sin(r + deg36) },
-    { x: (long / PHI) * Math.cos(r), y: (long / PHI) * Math.sin(r) },
-    { x: long * Math.cos(r - deg36), y: long * Math.sin(r - deg36) }
-  ];
-
-  const cx = local.reduce((s, v) => s + v.x, 0) / local.length;
-  const cy = local.reduce((s, v) => s + v.y, 0) / local.length;
-
-  return local.map(v => ({ x: x + v.x - cx, y: y + v.y - cy }));
-};
-
-const getVertices = (tile) => tile.type === 'kite'
-  ? getKiteVertices(tile.x, tile.y, tile.rotation)
-  : getDartVertices(tile.x, tile.y, tile.rotation);
-
-// Both tiles split into two triangles along the vertex 0 to 2 diagonal
-// (the axis), which also handles the dart's concave notch.
-const toTriangles = (v) => [[v[0], v[1], v[2]], [v[0], v[2], v[3]]];
-
-const pointInTriangle = (px, py, tri) => {
-  const [a, b, c] = tri;
-  const d1 = (px - b.x) * (a.y - b.y) - (a.x - b.x) * (py - b.y);
-  const d2 = (px - c.x) * (b.y - c.y) - (b.x - c.x) * (py - c.y);
-  const d3 = (px - a.x) * (c.y - a.y) - (c.x - a.x) * (py - a.y);
-  const neg = d1 < 0 || d2 < 0 || d3 < 0;
-  const pos = d1 > 0 || d2 > 0 || d3 > 0;
-  return !(neg && pos);
-};
-
-// True if any vertex lies outside the playfield (small rounding tolerance).
-const isOutsidePlayfield = (verts) => {
-  const EDGE_TOL = 0.5;
-  return verts.some(v =>
-    v.x < -EDGE_TOL || v.x > BOARD_W + EDGE_TOL ||
-    v.y < -EDGE_TOL || v.y > BOARD_H + EDGE_TOL
-  );
-};
-
-// Index of the board tile containing (x, y), or -1.
-const tileAtPoint = (tiles, x, y) =>
-  tiles.findIndex(t => toTriangles(t.verts).some(tri => pointInTriangle(x, y, tri)));
-
 const PenroseTerritoryGame = () => {
   const canvasRef = useRef(null);
-  const [mode, setMode] = useState('ai'); // 'ai' (vs computer) or 'two'
+  const [game, dispatch] = useReducer(gameReducer, undefined, () => initialGame());
+  const { mode, started: gameStarted, tiles, stones, history, currentPlayer, passes, captured, lastMove, gameOver } = game;
   const [thinkSeconds, setThinkSeconds] = useState(loadThinkSeconds);
-  const [gameStarted, setGameStarted] = useState(false);
-  const [board, setBoard] = useState(null); // tiles, created by the opening move
-  const [stones, setStones] = useState([]);
-  const [history, setHistory] = useState(() => new Set());
-  const [currentPlayer, setCurrentPlayer] = useState(1);
-  const [passes, setPasses] = useState(0); // consecutive passes
-  const [captured, setCaptured] = useState({ 1: 0, 2: 0 });
-  const [lastMove, setLastMove] = useState(null); // tile id
-  const [gameOver, setGameOver] = useState(null); // final area scores
-  const [statusMsg, setStatusMsg] = useState('');
-  const [selectedTileType, setSelectedTileType] = useState('kite');
+  const [selectedTileType, setSelectedTileType] = useState<TileType>('kite');
   const [rotation, setRotation] = useState(0);
   const [hoveredPos, setHoveredPos] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -168,10 +82,8 @@ const PenroseTerritoryGame = () => {
   const fxDrawsLastMove = !!fx?.setLastMove;
   const fxDrawsTarget = !!fx?.setTarget;
 
-  const tiles = board ? board.tiles : null;
-  const isComputerTurn = mode === 'ai' && currentPlayer === 2;
-  const humanTurn = gameStarted && !gameOver && !isComputerTurn;
-  const playerName = (p) => (mode === 'ai' && p === 2 ? 'Computer' : `Player ${p}`);
+  const computerTurn = isComputerTurn(game);
+  const humanTurn = isHumanTurn(game);
 
   // Escape closes the How to Play screen
   useEffect(() => {
@@ -189,112 +101,39 @@ const PenroseTerritoryGame = () => {
     return () => fx.detach();
   }, [fx]);
 
+  // Tell the skin's effects what the last move did. Only on a new event,
+  // so switching skins doesn't replay it.
+  useEffect(() => {
+    const ev = game.event;
+    if (!ev) return;
+    if (ev.kind === 'opening') {
+      fx?.cascade?.(ev.tiles, ev.verts);
+      fx?.place?.(ev.verts, ev.player);
+    } else {
+      fx?.place?.(tiles[ev.id].verts, ev.player);
+      if (ev.lost.length) fx?.capture?.(ev.lost.map(i => tiles[i].verts), opponentOf(ev.player), ev.player);
+    }
+  }, [game.event]);
+
   useEffect(() => {
     fx?.setBoard?.(tiles, stones);
-  }, [fx, board, stones]);
+  }, [fx, tiles, stones]);
 
   useEffect(() => {
-    const show = board && lastMove !== null && stones[lastMove];
+    const show = tiles && lastMove !== null && stones[lastMove];
     fx?.setLastMove?.(show ? tiles[lastMove].verts : null);
-  }, [fx, board, stones, lastMove]);
+  }, [fx, tiles, stones, lastMove]);
 
-  // Live score is stones on the board; at the end it is area (stones plus
-  // surrounded empty tiles).
-  const stoneCount = useMemo(() => {
-    const c = { 1: 0, 2: 0 };
-    stones.forEach(s => { if (s) c[s] += 1; });
-    return c;
-  }, [stones]);
-  const shownScore = gameOver || stoneCount;
+  const score = shownScore(game);
 
   const initGame = () => {
-    setBoard(null);
-    setStones([]);
-    setHistory(new Set());
-    setCurrentPlayer(1);
-    setPasses(0);
-    setCaptured({ 1: 0, 2: 0 });
-    setLastMove(null);
-    setGameOver(null);
     setRotation(0);
-    setGameStarted(true);
-    setStatusMsg('Place the first tile anywhere: the board is built around it.');
+    dispatch({ type: 'start' });
   };
 
   const resetGame = () => {
-    setGameStarted(false);
-    setBoard(null);
-    setStones([]);
-    setGameOver(null);
-    setLastMove(null);
     setHoveredPos(null);
-    setStatusMsg('');
-  };
-
-  // The opening tile: generates the board around it and claims it.
-  const placeOpening = (cand, player) => {
-    const verts = getVertices(cand);
-    if (isOutsidePlayfield(verts)) return false;
-    const { tiles: newTiles, opening } = buildBoard(cand.type, verts, BOARD_W, BOARD_H, TILE_SIZE);
-    const newStones = new Array(newTiles.length).fill(0);
-    newStones[opening] = player;
-    fx?.cascade?.(newTiles, verts);
-    fx?.place?.(verts, player);
-    setBoard({ tiles: newTiles });
-    setStones(newStones);
-    setHistory(new Set([positionKey(newStones)]));
-    setLastMove(opening);
-    setPasses(0);
-    setCurrentPlayer(opponentOf(player));
-    setStatusMsg('');
-    return true;
-  };
-
-  // Claims board tile `id` for `player`, if legal.
-  const claimTile = (id, player) => {
-    const r = playMove(tiles, stones, history, id, player);
-    if (!r.ok) {
-      setStatusMsg(r.reason);
-      return false;
-    }
-    const opp = opponentOf(player);
-    const lost = stones.map((s, i) => (s === opp && r.stones[i] === 0 ? i : -1)).filter(i => i >= 0);
-    fx?.place?.(tiles[id].verts, player);
-    if (lost.length) fx?.capture?.(lost.map(i => tiles[i].verts), opp, player);
-    setStones(r.stones);
-    setHistory(prev => new Set(prev).add(positionKey(r.stones)));
-    setLastMove(id);
-    setPasses(0);
-    if (r.captured > 0) {
-      setCaptured(prev => ({ ...prev, [player]: prev[player] + r.captured }));
-      setStatusMsg(`${playerName(player)} captured ${r.captured} tile${r.captured === 1 ? '' : 's'}!`);
-    } else {
-      setStatusMsg('');
-    }
-    setCurrentPlayer(opponentOf(player));
-    return true;
-  };
-
-  const pass = (player) => {
-    if (!board) {
-      // Skipping the opening hands it to the other player
-      setCurrentPlayer(opponentOf(player));
-      setStatusMsg(`${playerName(player)} skipped the opening.`);
-      return;
-    }
-    const n = passes + 1;
-    setPasses(n);
-    if (n >= 2) {
-      const { score } = scoreArea(tiles, stones);
-      setGameOver(score);
-      const winner = score[1] === score[2] ? null : score[1] > score[2] ? 1 : 2;
-      setStatusMsg(winner
-        ? `Game over: ${playerName(winner)} wins ${score[winner]} to ${score[opponentOf(winner)]}.`
-        : `Game over: a tie at ${score[1]}.`);
-      return;
-    }
-    setStatusMsg(`${playerName(player)} passes.`);
-    setCurrentPlayer(opponentOf(player));
+    dispatch({ type: 'reset' });
   };
 
   // The computer's turn: open the board if needed, otherwise search for a
@@ -302,21 +141,18 @@ const PenroseTerritoryGame = () => {
   // it, or pass. The worker is discarded if the turn is abandoned (e.g. New
   // Game), so a stale answer can never be played.
   useEffect(() => {
-    if (!gameStarted || gameOver || !isComputerTurn) return;
+    if (!gameStarted || gameOver || !computerTurn) return;
 
-    setStatusMsg('Computer is thinking…');
-    if (!board) {
-      const timer = setTimeout(() => {
-        placeOpening({ type: 'kite', x: BOARD_W / 2, y: BOARD_H / 2, rotation: 0 }, 2);
-      }, 400);
+    dispatch({ type: 'thinking' });
+    if (!tiles) {
+      const timer = setTimeout(() => dispatch({ type: 'open', cand: COMPUTER_OPENING }), 400);
       return () => clearTimeout(timer);
     }
 
     const worker = new Worker(new URL('./ai-worker.ts', import.meta.url), { type: 'module' });
     worker.onmessage = (e) => {
       const { move } = e.data;
-      if (move === null) pass(2);
-      else claimTile(move, 2);
+      dispatch(move === null ? { type: 'pass' } : { type: 'claim', id: move });
     };
     worker.postMessage({
       neighbors: tiles.map(t => t.neighbors),
@@ -328,7 +164,7 @@ const PenroseTerritoryGame = () => {
     });
 
     return () => worker.terminate();
-  }, [gameStarted, gameOver, isComputerTurn, board, stones]);
+  }, [gameStarted, gameOver, computerTurn, tiles, stones]);
 
   // Rotation controls (only matter for the opening tile)
   useEffect(() => {
@@ -337,10 +173,10 @@ const PenroseTerritoryGame = () => {
     const handleKeyDown = (e) => {
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        setRotation(prev => (prev - 36 + 360) % 360);
+        setRotation(prev => rotateStep(prev, -1));
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        setRotation(prev => (prev + 36) % 360);
+        setRotation(prev => rotateStep(prev, 1));
       }
     };
 
@@ -355,14 +191,14 @@ const PenroseTerritoryGame = () => {
   // leftover partial step is dropped after a short pause in the stream.
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !gameStarted || board) return;
+    if (!canvas || !gameStarted || tiles) return;
 
     const WHEEL_NOTCH = 50;
     const TRACKPAD_STEP = 50; // lower = faster trackpad rotation
     const SWIPE_END_MS = 150;
     const swipe = { total: 0, timer: null };
 
-    const rotateBy = (dy) => setRotation(prev => (prev + (dy < 0 ? 36 : -36) + 360) % 360);
+    const rotateBy = (dy) => setRotation(prev => rotateStep(prev, dy < 0 ? 1 : -1));
 
     const handleWheel = (e) => {
       e.preventDefault();
@@ -387,15 +223,15 @@ const PenroseTerritoryGame = () => {
       canvas.removeEventListener('wheel', handleWheel);
       clearTimeout(swipe.timer);
     };
-  }, [gameStarted, board]);
+  }, [gameStarted, tiles]);
 
   // What a point is over: the opening tile preview, or a board tile and
   // whether claiming it is legal.
   const targetAt = (pos) => {
     if (!pos || !humanTurn) return null;
-    if (!board) {
+    if (!tiles) {
       const cand = { type: selectedTileType, x: pos.x, y: pos.y, rotation };
-      const verts = getVertices(cand);
+      const verts = candidateVertices(cand);
       return { kind: 'opening', cand, verts, legal: !isOutsidePlayfield(verts) };
     }
     const id = tileAtPoint(tiles, pos.x, pos.y);
@@ -406,13 +242,12 @@ const PenroseTerritoryGame = () => {
 
   const target = useMemo(
     () => targetAt(hoveredPos),
-    [hoveredPos, humanTurn, board, stones, history, currentPlayer, selectedTileType, rotation]
+    [hoveredPos, humanTurn, tiles, stones, history, currentPlayer, selectedTileType, rotation]
   );
 
   const placeTarget = (t) => {
     if (!t || !t.legal) return;
-    if (t.kind === 'opening') placeOpening(t.cand, currentPlayer);
-    else claimTile(t.id, currentPlayer);
+    dispatch(t.kind === 'opening' ? { type: 'open', cand: t.cand } : { type: 'claim', id: t.id });
   };
 
   useEffect(() => {
@@ -423,7 +258,7 @@ const PenroseTerritoryGame = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     skin.drawBackground(ctx, canvas.width, canvas.height);
 
-    if (board) {
+    if (tiles) {
       const territory = gameOver ? scoreArea(tiles, stones).owner : null;
       tiles.forEach((t, i) => {
         skin.drawTile(ctx, t.verts, { stone: stones[i], territory: territory ? territory[i] : 0 });
@@ -445,7 +280,7 @@ const PenroseTerritoryGame = () => {
         ctx.restore();
       }
     }
-  }, [board, stones, lastMove, gameOver, target, currentPlayer, skin, fxDrawsLastMove, fxDrawsTarget]);
+  }, [tiles, stones, lastMove, gameOver, target, currentPlayer, skin, fxDrawsLastMove, fxDrawsTarget]);
 
   useEffect(() => {
     const show = target && target.legal;
@@ -488,29 +323,23 @@ const PenroseTerritoryGame = () => {
   const handlePointerUp = (e) => {
     if (!humanTurn || e.pointerType !== 'mouse' || e.button !== 0) return;
     const t = targetAt(getCanvasCoords(e));
-    if (t && t.kind === 'tile' && !t.legal) {
-      setStatusMsg(playMove(tiles, stones, history, t.id, currentPlayer).reason);
-    }
-    placeTarget(t);
+    // A click on an illegal tile still claims it, so the status line says why not
+    if (t && t.kind === 'tile') dispatch({ type: 'claim', id: t.id });
+    else placeTarget(t);
   };
 
   // Right-click rotates the opening tile clockwise (Shift + right-click
   // counter-clockwise) instead of opening the browser menu.
   const handleContextMenu = (e) => {
     e.preventDefault();
-    if (!gameStarted || board) return;
-    setRotation(prev => (prev + (e.shiftKey ? -36 : 36) + 360) % 360);
+    if (!gameStarted || tiles) return;
+    setRotation(prev => rotateStep(prev, e.shiftKey ? -1 : 1));
   };
 
   const handlePointerLeave = (e) => {
     if (e.pointerType === 'mouse') setHoveredPos(null);
   };
 
-  const turnText = !gameStarted
-    ? 'Press Start'
-    : gameOver
-      ? 'Game Over'
-      : `${playerName(currentPlayer)}'s Turn`;
 
   // The layout fills exactly the visible window (dvh tracks mobile browser
   // toolbars): header, scores and controls take their natural height and the
@@ -549,25 +378,25 @@ const PenroseTerritoryGame = () => {
 
         <div className={`${skin.chrome.panel} rounded-lg px-3 py-2 flex justify-around items-center`}>
           <div className="text-center">
-            <div className={`${players[1].text} text-xl sm:text-2xl font-bold`}>{shownScore[1]}</div>
+            <div className={`${players[1].text} text-xl sm:text-2xl font-bold`}>{score[1]}</div>
             <div className="text-slate-400 text-xs sm:text-sm">
-              {playerName(1)}{captured[1] > 0 && ` · ${captured[1]} captured`}
+              {playerName(mode, 1)}{captured[1] > 0 && ` · ${captured[1]} captured`}
             </div>
           </div>
 
           <div className="text-center">
             <div className={`text-base sm:text-xl font-bold ${gameOver ? 'text-white' : players[currentPlayer].text}`}>
-              {turnText}
+              {turnText(game)}
             </div>
-            {statusMsg && (
-              <div className="text-yellow-300 text-xs sm:text-sm">{statusMsg}</div>
+            {game.message && (
+              <div className="text-yellow-300 text-xs sm:text-sm">{game.message}</div>
             )}
           </div>
 
           <div className="text-center">
-            <div className={`${players[2].text} text-xl sm:text-2xl font-bold`}>{shownScore[2]}</div>
+            <div className={`${players[2].text} text-xl sm:text-2xl font-bold`}>{score[2]}</div>
             <div className="text-slate-400 text-xs sm:text-sm">
-              {playerName(2)}{captured[2] > 0 && ` · ${captured[2]} captured`}
+              {playerName(mode, 2)}{captured[2] > 0 && ` · ${captured[2]} captured`}
             </div>
           </div>
         </div>
@@ -577,7 +406,7 @@ const PenroseTerritoryGame = () => {
             <>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setMode('two')}
+                  onClick={() => dispatch({ type: 'setMode', mode: 'two' })}
                   className={`px-4 py-3 rounded-lg font-semibold ${
                     mode === 'two' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
                   }`}
@@ -585,7 +414,7 @@ const PenroseTerritoryGame = () => {
                   2 Players
                 </button>
                 <button
-                  onClick={() => setMode('ai')}
+                  onClick={() => dispatch({ type: 'setMode', mode: 'ai' })}
                   className={`px-4 py-3 rounded-lg font-semibold ${
                     mode === 'ai' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
                   }`}
@@ -621,7 +450,7 @@ const PenroseTerritoryGame = () => {
             </>
           ) : (
             <>
-              {!board && (
+              {!tiles && (
                 <>
                   <div className="flex gap-2">
                     <button
@@ -649,7 +478,7 @@ const PenroseTerritoryGame = () => {
                   {isTouchDevice ? (
                     <>
                       <button
-                        onClick={() => setRotation((rotation - 36 + 360) % 360)}
+                        onClick={() => setRotation(rotateStep(rotation, -1))}
                         aria-label="Rotate counter-clockwise"
                         className="bg-slate-700 active:bg-slate-600 text-white px-5 py-3 rounded-lg flex items-center gap-2"
                       >
@@ -657,7 +486,7 @@ const PenroseTerritoryGame = () => {
                       </button>
 
                       <button
-                        onClick={() => setRotation((rotation + 36) % 360)}
+                        onClick={() => setRotation(rotateStep(rotation, 1))}
                         aria-label="Rotate clockwise"
                         className="bg-slate-700 active:bg-slate-600 text-white px-5 py-3 rounded-lg flex items-center gap-2"
                       >
@@ -689,14 +518,14 @@ const PenroseTerritoryGame = () => {
 
               {!gameOver && (
                 <button
-                  onClick={() => pass(currentPlayer)}
+                  onClick={() => dispatch({ type: 'pass' })}
                   disabled={!humanTurn}
                   className={`bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 ${
                     humanTurn ? '' : 'opacity-50'
                   }`}
                 >
                   <SkipForward size={20} />
-                  {board ? 'Pass' : 'Skip Opening'}
+                  {tiles ? 'Pass' : 'Skip Opening'}
                 </button>
               )}
 
