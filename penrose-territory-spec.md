@@ -1,6 +1,6 @@
 # Penrogo (Penrose Go): Specification
 
-Status: reflects the game as currently implemented (`PenroseTerritoryGame` in `penrose-territory.tsx`, board generation in `penrose-board.ts`, the opening tile in `opening.ts`, rules and computer players in `go-engine.ts`).
+Status: reflects the game as currently implemented (`PenroseTerritoryGame` in `penrose-territory.tsx`, game state and turns in `game.ts`, board generation in `penrose-board.ts`, the opening tile in `opening.ts`, rules and computer players in `go-engine.ts`).
 
 ## 1. Overview
 
@@ -96,7 +96,7 @@ The look is chosen from a picker in the header, at any time (even mid-game); it 
 
 ## 8. Controls and Layout
 
-Same as `main`: mouse click to place; the scroll wheel, right-click (Shift for the other way) or Left/Right arrows rotate the opening tile on desktop; on touch devices the preview follows a finger drag (lifted 60 canvas units above it), rotate buttons are shown, and **Place** confirms. The page fills the visible window without scrolling, and the rules are on a **How to Play** overlay. Rotation controls appear only during the opening.
+Same as `main`: mouse click to place; the scroll wheel, right-click (Shift for the other way) or Left/Right arrows rotate the opening tile on desktop; on touch devices the preview follows a finger drag (lifted 60 canvas units above it), rotate buttons are shown, and **Place** confirms. The page fills the visible window without scrolling, and the rules are on a **How to Play** overlay. Rotation controls appear only during the opening. **New Game** returns to the start screen, clearing the board, the scores and the capture counts; the chosen mode (2 Players or vs Computer) is kept.
 
 ## 9. Known Limitations
 

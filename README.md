@@ -39,7 +39,8 @@ One-time setup, needed before the first deploy: repository **Settings → Pages 
 
 ## Layout
 
-- `penrose-territory.tsx`: the game component (state, drawing, controls)
+- `penrose-territory.tsx`: the game component (drawing, controls, the computer's turn)
+- `game.ts`: the game's state and moves as a pure reducer (opening, claiming, passing, the end), plus the status line and scoreboard
 - `go-engine.ts`: Go rules on the tile graph and the computer players (Monte Carlo tree search, plus the older heuristic player as a baseline)
 - `ai-worker.ts`: runs the computer's search in a Web Worker
 - `penrose-board.ts`: Penrose tiling generation and the tile adjacency graph

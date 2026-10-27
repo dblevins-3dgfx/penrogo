@@ -1,0 +1,183 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  OPENING_HINT, THINKING, gameReducer, initialGame, isComputerTurn, isHumanTurn,
+  playerName, resultText, shownScore, turnText, type GameAction, type GameState
+} from './game';
+import { BOARD_W, COMPUTER_OPENING, candidateVertices } from './opening';
+import { positionKey } from './go-engine';
+
+const run = (g: GameState, ...actions: GameAction[]) => actions.reduce(gameReducer, g);
+const started = (mode: 'ai' | 'two' = 'two') => run(initialGame(mode), { type: 'start' });
+const opened = (mode: 'ai' | 'two' = 'two') => run(started(mode), { type: 'open', cand: COMPUTER_OPENING });
+
+// An empty tile whose neighbors are all empty too, so claiming it captures nothing
+const quietTile = (g: GameState) =>
+  g.tiles.findIndex((t, i) => g.stones[i] === 0 && t.neighbors.length === 4 && t.neighbors.every(n => g.stones[n] === 0));
+
+test('a new game starts with the opening hint, Player 1 to move', () => {
+  const g = started();
+  assert.equal(g.started, true);
+  assert.equal(g.tiles, null);
+  assert.equal(g.currentPlayer, 1);
+  assert.equal(g.message, OPENING_HINT);
+  assert.equal(turnText(g), "Player 1's Turn");
+});
+
+test('the mode can change before the game starts, not during it', () => {
+  assert.equal(run(initialGame('ai'), { type: 'setMode', mode: 'two' }).mode, 'two');
+  assert.equal(run(started('ai'), { type: 'setMode', mode: 'two' }).mode, 'ai');
+  assert.equal(started('ai').mode, 'ai', 'start keeps the chosen mode');
+});
+
+// Spec 5, Opening
+test('the opening builds the board and becomes the opener\'s first stone', () => {
+  const g = opened();
+  assert.ok(g.tiles.length > 150);
+  assert.equal(g.stones.filter(s => s !== 0).length, 1);
+  assert.equal(g.stones[g.lastMove], 1);
+  assert.equal(g.currentPlayer, 2, 'the other player moves next');
+  assert.equal(g.message, '');
+  assert.deepEqual([...g.history], [positionKey(g.stones)]);
+  assert.equal(g.event.kind, 'opening');
+  assert.deepEqual(g.event.kind === 'opening' && g.event.verts, candidateVertices(COMPUTER_OPENING));
+});
+
+test('an opening tile sticking out of the board is ignored', () => {
+  const g = started();
+  const out = run(g, { type: 'open', cand: { type: 'kite', x: 2, y: 300, rotation: 0 } });
+  assert.equal(out, g);
+});
+
+test('a second opening is ignored once the board exists', () => {
+  const g = opened();
+  assert.equal(run(g, { type: 'open', cand: { type: 'kite', x: BOARD_W / 3, y: 200, rotation: 0 } }), g);
+});
+
+// Spec 5, Opening: Skip Opening hands it to the other player
+test('Skip Opening hands the opening to the other player', () => {
+  const g = run(started('ai'), { type: 'pass' });
+  assert.equal(g.tiles, null);
+  assert.equal(g.currentPlayer, 2);
+  assert.equal(g.passes, 0, 'skipping is not a pass');
+  assert.equal(g.message, 'Player 1 skipped the opening.');
+  assert.equal(isComputerTurn(g), true);
+  const h = run(g, { type: 'open', cand: COMPUTER_OPENING });
+  assert.equal(h.stones[h.lastMove], 2, 'the computer opens');
+  assert.equal(h.currentPlayer, 1);
+});
+
+// Spec 5, Moves: players alternate
+test('claiming a tile places a stone and passes the turn', () => {
+  const g = opened();
+  const id = quietTile(g);
+  const h = run(g, { type: 'claim', id });
+  assert.equal(h.stones[id], 2);
+  assert.equal(h.currentPlayer, 1);
+  assert.equal(h.lastMove, id);
+  assert.equal(h.message, '');
+  assert.equal(h.history.size, 2);
+  assert.ok(!g.history.has(positionKey(h.stones)), 'the earlier state is not changed');
+  assert.deepEqual(h.event, { kind: 'claim', id, player: 2, lost: [] });
+});
+
+test('an illegal claim leaves the board alone and says why', () => {
+  const g = opened();
+  const h = run(g, { type: 'claim', id: g.lastMove });
+  assert.equal(h.stones, g.stones);
+  assert.equal(h.currentPlayer, 2);
+  assert.equal(h.message, 'That tile is taken.');
+});
+
+// Spec 5, Capture and the scoreboard's capture count
+test('a capture removes the group, counts it and names the capturer', () => {
+  let g = opened('ai');
+  // Surround Player 1's opening stone with the computer's stones
+  const target = g.lastMove;
+  const ring = g.tiles[target].neighbors;
+  for (let k = 0; k < ring.length; k++) {
+    g = run(g, { type: 'claim', id: ring[k] });
+    if (k < ring.length - 1) {
+      // Player 1 plays somewhere harmless
+      g = run(g, { type: 'claim', id: quietTile(g) });
+    }
+  }
+  assert.equal(g.stones[target], 0);
+  assert.equal(g.captured[2], 1);
+  assert.equal(g.captured[1], 0);
+  assert.equal(g.message, 'Computer captured 1 tile!');
+  assert.ok(g.event.kind === 'claim' && g.event.lost.includes(target));
+});
+
+// Spec 5, End: two consecutive passes end the game
+test('one pass hands over the turn; a move resets the count', () => {
+  const g = run(opened(), { type: 'pass' });
+  assert.equal(g.passes, 1);
+  assert.equal(g.currentPlayer, 1);
+  assert.equal(g.message, 'Player 2 passes.');
+  assert.equal(g.gameOver, null);
+  const h = run(g, { type: 'claim', id: quietTile(g) });
+  assert.equal(h.passes, 0);
+});
+
+test('two passes in a row end the game with the area score', () => {
+  const g = run(opened(), { type: 'pass' }, { type: 'pass' });
+  assert.ok(g.gameOver);
+  // Player 1's lone opening stone surrounds the whole empty board
+  assert.equal(g.gameOver[1], g.tiles.length);
+  assert.equal(g.gameOver[2], 0);
+  assert.equal(g.message, `Game over: Player 1 wins ${g.tiles.length} to 0.`);
+  assert.equal(turnText(g), 'Game Over');
+  assert.equal(isHumanTurn(g), false);
+});
+
+test('moves are ignored once the game is over, and before it starts', () => {
+  const over = run(opened(), { type: 'pass' }, { type: 'pass' });
+  assert.equal(run(over, { type: 'claim', id: quietTile(over) }), over);
+  assert.equal(run(over, { type: 'pass' }), over);
+  const idle = initialGame();
+  assert.equal(run(idle, { type: 'open', cand: COMPUTER_OPENING }), idle);
+  assert.equal(run(idle, { type: 'thinking' }), idle);
+});
+
+test('the result names the winner, or a tie', () => {
+  assert.equal(resultText('two', { 1: 40, 2: 52 }), 'Game over: Player 2 wins 52 to 40.');
+  assert.equal(resultText('ai', { 1: 40, 2: 52 }), 'Game over: Computer wins 52 to 40.');
+  assert.equal(resultText('ai', { 1: 61, 2: 30 }), 'Game over: Player 1 wins 61 to 30.');
+  assert.equal(resultText('two', { 1: 45, 2: 45 }), 'Game over: a tie at 45.');
+});
+
+// Spec 5, Score: the scoreboard
+test('the scoreboard shows stones during play and the area score at the end', () => {
+  const g = opened();
+  const h = run(g, { type: 'claim', id: quietTile(g) });
+  assert.deepEqual(shownScore(h), { 1: 1, 2: 1 });
+  const over = run(h, { type: 'pass' }, { type: 'pass' });
+  assert.equal(shownScore(over), over.gameOver);
+});
+
+test('player names: the computer is Player 2 against the computer', () => {
+  assert.equal(playerName('ai', 1), 'Player 1');
+  assert.equal(playerName('ai', 2), 'Computer');
+  assert.equal(playerName('two', 2), 'Player 2');
+});
+
+test('whose turn: a person, unless the computer plays Player 2', () => {
+  assert.equal(turnText(initialGame()), 'Press Start');
+  const ai = run(started('ai'), { type: 'open', cand: COMPUTER_OPENING });
+  assert.equal(isComputerTurn(ai), true);
+  assert.equal(isHumanTurn(ai), false);
+  assert.equal(turnText(ai), "Computer's Turn");
+  const two = opened('two');
+  assert.equal(isComputerTurn(two), false);
+  assert.equal(isHumanTurn(two), true);
+});
+
+test('the computer thinking shows on the status line', () => {
+  assert.equal(run(opened('ai'), { type: 'thinking' }).message, THINKING);
+});
+
+test('New Game clears the board and the capture counts, keeping the mode', () => {
+  const g = run(opened('ai'), { type: 'pass' }, { type: 'reset' });
+  assert.deepEqual(g, initialGame('ai'));
+});
