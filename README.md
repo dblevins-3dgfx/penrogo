@@ -6,6 +6,10 @@ The original free-placement version, where players built the tiling themselves, 
 
 See [penrose-territory-spec.md](penrose-territory-spec.md) for the full rules and design.
 
+## On a phone
+
+On an iPhone, open the game in Safari and use **Share → Add to Home Screen**: it then opens full screen from its own icon, like an app. (Its skin and thinking-time choices are kept apart from Safari's.)
+
 ## Running
 
 Requires Node.js 20.19+ or 22.12+.
@@ -51,7 +55,8 @@ One-time setup, needed before the first deploy: repository **Settings → Pages 
   - `blueprint/`: a drafting sheet with hatched, dimensioned stones (`drafting.ts`), with pencil draw-in and erasing (`effects.ts`)
   - `go-classic/`: slate and shell stones on a kaya board (`stones.ts`), set down with a drop and taken as prisoners (`effects.ts`)
   - `kites-and-darts/`: silk kites and metal darts in a sky (`pieces.ts`), with wind, fluttering ribbon and fletching, and glint animations (`effects.ts`)
-- `src/main.tsx`, `src/index.css`, `index.html`: Vite entry point and Tailwind setup
+- `src/main.tsx`, `src/index.css`, `index.html`: Vite entry point, Tailwind setup, and the touch and home-screen settings
+- `public/`: the web app manifest and icons, and the third-party notices
 
 ## Adding a skin
 

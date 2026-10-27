@@ -18,6 +18,8 @@ This replaces the original free-placement game (kept on the `original-game` bran
 | Styling | Tailwind CSS v4 utility classes |
 | Icons | lucide-react (`RotateCw`, `RotateCcw`, `Play`, `SkipForward`, `CircleHelp`, `X`) |
 | Persistence | The chosen skin and the computer's thinking time are kept in the browser's localStorage; the game itself is in memory only |
+| Home screen | Installable as a home-screen web app (on an iPhone: Safari, Share, Add to Home Screen). `public/manifest.webmanifest` names it Penrogo and has it open full screen (`standalone`), with the icons `icon-192.png` and `icon-512.png` (the 192 also serves as the browser tab icon); `index.html` adds Apple's tags (`apple-touch-icon.png` at 180 x 180, full-screen capable, the title, a translucent status bar with white text over the dark page) and a dark slate theme color. The icon is drawn in the Go Classic skin, with its own drawing code: a sun of five kites on the kaya board, holding two slate (black) and two clamshell (white) stones and one empty point, with Go's ring marker on a black stone as the last move. Opened from the home screen, it keeps its own storage, separate from Safari's, so its skin and thinking time start at their defaults. It still needs the network to start (no offline play yet) |
+| Touch | The page reaches under the notch, rounded corners and home bar (`viewport-fit=cover`), and the page and the How to Play overlay pad themselves back in by the safe-area insets (`.safe-area`), so nothing sits under them. Double-tap zoom, text selection, the long-press callout and the tap highlight are turned off (`src/index.css`) |
 
 ## 3. Tiles
 
@@ -102,4 +104,5 @@ Same as `main`: mouse click to place; the scroll wheel, right-click (Shift for t
 - Area scoring counts every stone on the board, so dead stones must be captured before passing.
 - No komi, handicap, undo, or save/load.
 - Clipping to the rectangular board leaves ragged edges with some tiles having only 1 to 3 neighbors.
-- Not yet tested on a physical touch device.
+- Not yet tested on a physical touch device (only in a browser emulating an iPhone).
+- No offline play: the home-screen app needs the network to start.

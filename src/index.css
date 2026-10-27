@@ -1,1 +1,30 @@
 @import "tailwindcss";
+
+/* On touch screens: no double-tap zoom, and no text selection loupe or
+   callout on a long press, so the game feels like an app */
+html {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  background: #0f172a;
+}
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Padding that also keeps clear of the notch, the rounded corners and the
+   home bar when the game runs full screen (viewport-fit=cover in
+   index.html). Set --pad for the padding wanted away from them; in the
+   components layer, so a utility like [--pad:1rem] overrides the default. */
+@layer components {
+  .safe-area {
+    --pad: 0.5rem;
+    padding:
+      calc(var(--pad) + env(safe-area-inset-top))
+      calc(var(--pad) + env(safe-area-inset-right))
+      calc(var(--pad) + env(safe-area-inset-bottom))
+      calc(var(--pad) + env(safe-area-inset-left));
+  }
+}
