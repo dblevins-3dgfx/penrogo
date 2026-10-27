@@ -17,7 +17,7 @@ This replaces the original free-placement game (kept on the `original-game` bran
 | Rendering | HTML5 Canvas 2D, 800 x 600 internal resolution, scaled to the largest 4:3 size that fits the window |
 | Styling | Tailwind CSS v4 utility classes |
 | Icons | lucide-react (`RotateCw`, `RotateCcw`, `Play`, `SkipForward`, `CircleHelp`, `X`) |
-| Persistence | None (all state in memory) |
+| Persistence | The chosen skin and the computer's thinking time are kept in the browser's localStorage; the game itself is in memory only |
 
 ## 3. Tiles
 
