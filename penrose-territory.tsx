@@ -2,6 +2,11 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { RotateCw, Play, SkipForward, RotateCcw, CircleHelp, X, Palette } from 'lucide-react';
 import { buildBoard } from './penrose-board';
 import { opponentOf, playMove, positionKey, scoreArea } from './go-engine';
+import {
+  BOARD_H, BOARD_W, COMPUTER_OPENING, TILE_SIZE,
+  candidateVertices, isOutsidePlayfield, rotateStep, tileAtPoint,
+  type TileType
+} from './opening';
 import { SKINS, DEFAULT_SKIN, DEFAULT_PLAYERS, skinById } from './skins';
 import type { Player } from './skins/types';
 
@@ -47,88 +52,6 @@ const saveThinkSeconds = (v) => {
   }
 };
 
-const PHI = (1 + Math.sqrt(5)) / 2;
-const TILE_SIZE = 60;
-
-// Playfield size (matches the canvas).
-const BOARD_W = 800;
-const BOARD_H = 600;
-
-// ---------------------------------------------------------------------
-// Tile geometry (used for the opening tile, which decides the board)
-// ---------------------------------------------------------------------
-
-// Kite: vertices O(72°) -> B(72°) -> C(144°) -> D(72°), edges long, short,
-// short, long. Axis of symmetry through O and C. Centered on the centroid.
-const getKiteVertices = (x, y, rotation) => {
-  const r = rotation * Math.PI / 180;
-  const long = TILE_SIZE;
-  const deg36 = 36 * Math.PI / 180;
-
-  const local = [
-    { x: 0, y: 0 },
-    { x: long * Math.cos(r + deg36), y: long * Math.sin(r + deg36) },
-    { x: long * Math.cos(r), y: long * Math.sin(r) },
-    { x: long * Math.cos(r - deg36), y: long * Math.sin(r - deg36) }
-  ];
-
-  const cx = local.reduce((s, v) => s + v.x, 0) / local.length;
-  const cy = local.reduce((s, v) => s + v.y, 0) / local.length;
-
-  return local.map(v => ({ x: x + v.x - cx, y: y + v.y - cy }));
-};
-
-// Dart: vertices M(72°) -> N(36°) -> A'(216°, reflex) -> N'(36°), edges
-// long, short, short, long. Axis of symmetry through M and A'.
-const getDartVertices = (x, y, rotation) => {
-  const r = rotation * Math.PI / 180;
-  const long = TILE_SIZE;
-  const deg36 = 36 * Math.PI / 180;
-
-  const local = [
-    { x: 0, y: 0 },
-    { x: long * Math.cos(r + deg36), y: long * Math.sin(r + deg36) },
-    { x: (long / PHI) * Math.cos(r), y: (long / PHI) * Math.sin(r) },
-    { x: long * Math.cos(r - deg36), y: long * Math.sin(r - deg36) }
-  ];
-
-  const cx = local.reduce((s, v) => s + v.x, 0) / local.length;
-  const cy = local.reduce((s, v) => s + v.y, 0) / local.length;
-
-  return local.map(v => ({ x: x + v.x - cx, y: y + v.y - cy }));
-};
-
-const getVertices = (tile) => tile.type === 'kite'
-  ? getKiteVertices(tile.x, tile.y, tile.rotation)
-  : getDartVertices(tile.x, tile.y, tile.rotation);
-
-// Both tiles split into two triangles along the vertex 0 to 2 diagonal
-// (the axis), which also handles the dart's concave notch.
-const toTriangles = (v) => [[v[0], v[1], v[2]], [v[0], v[2], v[3]]];
-
-const pointInTriangle = (px, py, tri) => {
-  const [a, b, c] = tri;
-  const d1 = (px - b.x) * (a.y - b.y) - (a.x - b.x) * (py - b.y);
-  const d2 = (px - c.x) * (b.y - c.y) - (b.x - c.x) * (py - c.y);
-  const d3 = (px - a.x) * (c.y - a.y) - (c.x - a.x) * (py - a.y);
-  const neg = d1 < 0 || d2 < 0 || d3 < 0;
-  const pos = d1 > 0 || d2 > 0 || d3 > 0;
-  return !(neg && pos);
-};
-
-// True if any vertex lies outside the playfield (small rounding tolerance).
-const isOutsidePlayfield = (verts) => {
-  const EDGE_TOL = 0.5;
-  return verts.some(v =>
-    v.x < -EDGE_TOL || v.x > BOARD_W + EDGE_TOL ||
-    v.y < -EDGE_TOL || v.y > BOARD_H + EDGE_TOL
-  );
-};
-
-// Index of the board tile containing (x, y), or -1.
-const tileAtPoint = (tiles, x, y) =>
-  tiles.findIndex(t => toTriangles(t.verts).some(tri => pointInTriangle(x, y, tri)));
-
 const PenroseTerritoryGame = () => {
   const canvasRef = useRef(null);
   const [mode, setMode] = useState('ai'); // 'ai' (vs computer) or 'two'
@@ -143,7 +66,7 @@ const PenroseTerritoryGame = () => {
   const [lastMove, setLastMove] = useState(null); // tile id
   const [gameOver, setGameOver] = useState(null); // final area scores
   const [statusMsg, setStatusMsg] = useState('');
-  const [selectedTileType, setSelectedTileType] = useState('kite');
+  const [selectedTileType, setSelectedTileType] = useState<TileType>('kite');
   const [rotation, setRotation] = useState(0);
   const [hoveredPos, setHoveredPos] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -233,7 +156,7 @@ const PenroseTerritoryGame = () => {
 
   // The opening tile: generates the board around it and claims it.
   const placeOpening = (cand, player) => {
-    const verts = getVertices(cand);
+    const verts = candidateVertices(cand);
     if (isOutsidePlayfield(verts)) return false;
     const { tiles: newTiles, opening } = buildBoard(cand.type, verts, BOARD_W, BOARD_H, TILE_SIZE);
     const newStones = new Array(newTiles.length).fill(0);
@@ -307,7 +230,7 @@ const PenroseTerritoryGame = () => {
     setStatusMsg('Computer is thinking…');
     if (!board) {
       const timer = setTimeout(() => {
-        placeOpening({ type: 'kite', x: BOARD_W / 2, y: BOARD_H / 2, rotation: 0 }, 2);
+        placeOpening(COMPUTER_OPENING, 2);
       }, 400);
       return () => clearTimeout(timer);
     }
@@ -337,10 +260,10 @@ const PenroseTerritoryGame = () => {
     const handleKeyDown = (e) => {
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        setRotation(prev => (prev - 36 + 360) % 360);
+        setRotation(prev => rotateStep(prev, -1));
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        setRotation(prev => (prev + 36) % 360);
+        setRotation(prev => rotateStep(prev, 1));
       }
     };
 
@@ -362,7 +285,7 @@ const PenroseTerritoryGame = () => {
     const SWIPE_END_MS = 150;
     const swipe = { total: 0, timer: null };
 
-    const rotateBy = (dy) => setRotation(prev => (prev + (dy < 0 ? 36 : -36) + 360) % 360);
+    const rotateBy = (dy) => setRotation(prev => rotateStep(prev, dy < 0 ? 1 : -1));
 
     const handleWheel = (e) => {
       e.preventDefault();
@@ -395,7 +318,7 @@ const PenroseTerritoryGame = () => {
     if (!pos || !humanTurn) return null;
     if (!board) {
       const cand = { type: selectedTileType, x: pos.x, y: pos.y, rotation };
-      const verts = getVertices(cand);
+      const verts = candidateVertices(cand);
       return { kind: 'opening', cand, verts, legal: !isOutsidePlayfield(verts) };
     }
     const id = tileAtPoint(tiles, pos.x, pos.y);
@@ -499,7 +422,7 @@ const PenroseTerritoryGame = () => {
   const handleContextMenu = (e) => {
     e.preventDefault();
     if (!gameStarted || board) return;
-    setRotation(prev => (prev + (e.shiftKey ? -36 : 36) + 360) % 360);
+    setRotation(prev => rotateStep(prev, e.shiftKey ? -1 : 1));
   };
 
   const handlePointerLeave = (e) => {
@@ -649,7 +572,7 @@ const PenroseTerritoryGame = () => {
                   {isTouchDevice ? (
                     <>
                       <button
-                        onClick={() => setRotation((rotation - 36 + 360) % 360)}
+                        onClick={() => setRotation(rotateStep(rotation, -1))}
                         aria-label="Rotate counter-clockwise"
                         className="bg-slate-700 active:bg-slate-600 text-white px-5 py-3 rounded-lg flex items-center gap-2"
                       >
@@ -657,7 +580,7 @@ const PenroseTerritoryGame = () => {
                       </button>
 
                       <button
-                        onClick={() => setRotation((rotation + 36) % 360)}
+                        onClick={() => setRotation(rotateStep(rotation, 1))}
                         aria-label="Rotate clockwise"
                         className="bg-slate-700 active:bg-slate-600 text-white px-5 py-3 rounded-lg flex items-center gap-2"
                       >

@@ -43,6 +43,7 @@ One-time setup, needed before the first deploy: repository **Settings → Pages 
 - `go-engine.ts`: Go rules on the tile graph and the computer players (Monte Carlo tree search, plus the older heuristic player as a baseline)
 - `ai-worker.ts`: runs the computer's search in a Web Worker
 - `penrose-board.ts`: Penrose tiling generation and the tile adjacency graph
+- `opening.ts`: the playfield and the opening tile (its shape, rotation, whether it fits), and which tile a point is over
 - `*.test.ts`: unit tests for the spec's rules; `untested-requirements.md` lists the rules they don't cover yet
 - `skins/`: visual skins, one folder each, found automatically
   - `types.ts`: the `Skin` and `SkinEffects` interfaces every skin implements
