@@ -516,7 +516,7 @@ const PenroseTerritoryGame = () => {
   // toolbars): header, scores and controls take their natural height and the
   // board scales to the largest 4:3 size that fits in the rest.
   return (
-    <div className={`w-full h-dvh overflow-hidden ${skin.chrome.page} flex flex-col items-center p-2 sm:p-3`}>
+    <div className={`safe-area [--pad:0.5rem] sm:[--pad:0.75rem] w-full h-dvh overflow-hidden ${skin.chrome.page} flex flex-col items-center`}>
       <div className="max-w-6xl w-full h-full flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h1 className={`text-xl sm:text-2xl font-bold ${skin.chrome.title}`}>Penrogo</h1>
@@ -742,7 +742,7 @@ const PenroseTerritoryGame = () => {
 
       {showHelp && (
         <div
-          className="fixed inset-0 z-10 bg-slate-900/95 overflow-y-auto p-4"
+          className="safe-area [--pad:1rem] fixed inset-0 z-10 bg-slate-900/95 overflow-y-auto"
           onClick={() => setShowHelp(false)}
         >
           <div
