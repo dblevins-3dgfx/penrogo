@@ -5,7 +5,7 @@
 // what they mean (see targetAt in game.ts).
 import { useEffect, useMemo, useRef } from 'react';
 import { opponentOf, scoreArea } from '../go-engine';
-import { isHumanTurn, type AtariGroup, type GameEvent, type GameState, type Target } from '../game';
+import { isHumanTurn, type AtariGroup, type GameEvent, type GameState, type Target, type Tile } from '../game';
 import { BOARD_H, BOARD_W, SWIPE_END_MS, WHEEL_NOTCH, boardSize, wheelPixels, wheelTurns, type Point } from '../opening';
 import type { Skin } from '../skins';
 import { centroidOf, tracePolygon } from '../skins/canvas-utils';
@@ -128,11 +128,47 @@ const drawAtari = (ctx: CanvasRenderingContext2D, tiles: { verts: Point[] }[], g
   ctx.restore();
 };
 
-// Draws the board, the last move and the target with the skin's hooks, the
-// groups in atari over them, and the hinted tile on top
+// The tiles (stones, empty tiles, and the territory at the end) and the last
+// move, with the skin's hooks
+const drawStones = (ctx: CanvasRenderingContext2D, skin: Skin, game: GameState, tiles: Tile[],
+  fxDrawsLastMove: boolean) => {
+  const { stones, lastMove, gameOver } = game;
+  const territory = gameOver ? scoreArea(tiles, stones).owner : null;
+  tiles.forEach((t, i) => {
+    skin.drawTile(ctx, t.verts, { stone: stones[i], territory: territory ? territory[i] : 0 });
+  });
+  // Unless the skin's effects draw (and animate) it on the overlay
+  if (lastMove !== null && stones[lastMove] && !fxDrawsLastMove) skin.drawLastMove(ctx, tiles[lastMove].verts, stones[lastMove] as Player);
+};
+
+// The hover/preview target with the skin's hook (unless the skin's effects
+// draw a legal one), and a red border while the opening tile would stick
+// out of the w x h board
+const drawTargetLayer = (ctx: CanvasRenderingContext2D, skin: Skin, target: Target, player: Player,
+  fxDrawsTarget: boolean, w: number, h: number) => {
+  if (!(fxDrawsTarget && target.legal)) skin.drawTarget(ctx, target.verts, player, target.legal);
+  if (target.kind !== 'opening' || target.legal) return;
+  ctx.save();
+  ctx.strokeStyle = '#dc2626';
+  ctx.lineWidth = 8;
+  ctx.strokeRect(4, 4, w - 8, h - 8);
+  ctx.restore();
+};
+
+// What goes over the tiles: the groups in atari, the target, and the
+// hinted tile on top
+const drawOverlays = (ctx: CanvasRenderingContext2D, skin: Skin, game: GameState, target: Target | null,
+  atari: AtariGroup[], fxDrawsTarget: boolean, w: number, h: number) => {
+  const { tiles, hint, currentPlayer } = game;
+  if (tiles) atari.forEach(g => drawAtari(ctx, tiles, g));
+  if (target) drawTargetLayer(ctx, skin, target, currentPlayer, fxDrawsTarget, w, h);
+  if (tiles && hint?.status === 'shown' && hint.move !== null) drawHint(ctx, tiles[hint.move].verts);
+};
+
+// Draws the whole board, scaled from board units to the canvas: the
+// background, the tiles and last move, and the overlays
 const drawBoard = (canvas: HTMLCanvasElement, skin: Skin, game: GameState, target: Target | null,
   atari: AtariGroup[], fxDrawsLastMove: boolean, fxDrawsTarget: boolean) => {
-  const { tiles, stones, lastMove, gameOver, currentPlayer } = game;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const { w, h } = boardSize(game.size);
@@ -140,33 +176,8 @@ const drawBoard = (canvas: HTMLCanvasElement, skin: Skin, game: GameState, targe
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.setTransform(canvas.width / w, 0, 0, canvas.width / w, 0, 0);
   skin.drawBackground(ctx, w, h);
-
-  if (tiles) {
-    const territory = gameOver ? scoreArea(tiles, stones).owner : null;
-    tiles.forEach((t, i) => {
-      skin.drawTile(ctx, t.verts, { stone: stones[i], territory: territory ? territory[i] : 0 });
-    });
-    // Unless the skin's effects draw (and animate) it on the overlay
-    if (lastMove !== null && stones[lastMove] && !fxDrawsLastMove) skin.drawLastMove(ctx, tiles[lastMove].verts, stones[lastMove] as Player);
-    atari.forEach(g => drawAtari(ctx, tiles, g));
-  }
-
-  if (target) {
-    // A legal preview may be drawn by the skin's effects instead
-    if (!(fxDrawsTarget && target.legal)) skin.drawTarget(ctx, target.verts, currentPlayer, target.legal);
-
-    // Red border while the opening tile would stick out of the board
-    if (target.kind === 'opening' && !target.legal) {
-      ctx.save();
-      ctx.strokeStyle = '#dc2626';
-      ctx.lineWidth = 8;
-      ctx.strokeRect(4, 4, w - 8, h - 8);
-      ctx.restore();
-    }
-  }
-
-  const { hint } = game;
-  if (tiles && hint?.status === 'shown' && hint.move !== null) drawHint(ctx, tiles[hint.move].verts);
+  if (game.tiles) drawStones(ctx, skin, game, game.tiles, fxDrawsLastMove);
+  drawOverlays(ctx, skin, game, target, atari, fxDrawsTarget, w, h);
 };
 
 const BoardCanvas = ({ skin, game, target, atari, onHover, onClick, onRotate }: BoardCanvasProps) => {
