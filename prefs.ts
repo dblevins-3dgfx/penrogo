@@ -5,6 +5,7 @@
 export const SKIN_STORAGE_KEY = 'penrogo.skin';
 export const THINK_STORAGE_KEY = 'penrogo.thinkSeconds';
 export const HINTS_STORAGE_KEY = 'penrogo.hints';
+export const ATARI_STORAGE_KEY = 'penrogo.atari';
 
 // How long the computer may think per move, in seconds.
 export const THINK_OPTIONS = [1, 3, 5, 10];
@@ -21,7 +22,8 @@ export const parseThinkSeconds = (raw: string | null): number => {
 export const parseSkinId = (raw: string | null, ids: string[], fallback: string): string =>
   raw !== null && ids.includes(raw) ? raw : fallback;
 
-// Whether the Hint button is available. Saved as 'on' or 'off'; anything
+// A switch that is on by default: whether the Hint button is available,
+// and whether atari warnings are shown. Saved as 'on' or 'off'; anything
 // else (including nothing saved) means on, so new players have it.
-export const parseHints = (raw: string | null): boolean => raw !== 'off';
-export const formatHints = (on: boolean): string => (on ? 'on' : 'off');
+export const parseSwitch = (raw: string | null): boolean => raw !== 'off';
+export const formatSwitch = (on: boolean): string => (on ? 'on' : 'off');

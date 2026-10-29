@@ -5,7 +5,7 @@
 // type and rotation, where the pointer is, and which dialog is open. The rules are in
 // game.ts, opening.ts and go-engine.ts.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { placeAction, targetAt } from './game';
+import { atariText, ataris, placeAction, targetAt } from './game';
 import { rotateStep, type Point, type TileType } from './opening';
 import { DEFAULT_PLAYERS, skinById } from './skins';
 import { useGame } from './ui/useGame';
@@ -20,7 +20,7 @@ import Preferences from './ui/Preferences';
 const isTouchDevice = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
 
 const PenroseTerritoryGame = () => {
-  const { skinId, setSkinId, thinkSeconds, setThinkSeconds, hintsOn, setHintsOn } = useSettings();
+  const { skinId, setSkinId, thinkSeconds, setThinkSeconds, hintsOn, setHintsOn, atariOn, setAtariOn } = useSettings();
   const [game, dispatch] = useGame(thinkSeconds);
   const [tileType, setTileType] = useState<TileType>('kite');
   const [rotation, setRotation] = useState(0);
@@ -36,6 +36,8 @@ const PenroseTerritoryGame = () => {
   // Kept while nothing it depends on changes, so the board isn't redrawn
   // and the skin's preview animation isn't restarted on every render
   const target = useMemo(() => targetAt(game, hoveredPos, tileType, rotation), [game, hoveredPos, tileType, rotation]);
+  // The groups in atari, when the warnings are on
+  const atari = useMemo(() => (atariOn ? ataris(game) : []), [atariOn, game]);
   const place = (pos: Point) => {
     const a = placeAction(targetAt(game, pos, tileType, rotation));
     if (a) dispatch(a);
@@ -87,7 +89,7 @@ const PenroseTerritoryGame = () => {
       <div className="max-w-6xl landscape:max-w-none w-full h-full flex flex-col landscape:flex-row gap-2">
         <div className="flex flex-col gap-2 short:gap-1.5 landscape:order-last landscape:flex-1 landscape:min-w-72 landscape:max-w-md landscape:min-h-0 landscape:overflow-y-auto">
           <Header skin={skin} onPrefs={() => setShowPrefs(true)} onHelp={() => setShowHelp(true)} />
-          <Scoreboard game={game} panel={panel} players={players} />
+          <Scoreboard game={game} panel={panel} players={players} warning={atariText(game.mode, atari)} />
           <Controls
             game={game}
             dispatch={dispatch}
@@ -117,6 +119,7 @@ const PenroseTerritoryGame = () => {
             skin={skin}
             game={game}
             target={target}
+            atari={atari}
             onHover={setHoveredPos}
             onClick={place}
             onRotate={rotate}
@@ -131,6 +134,8 @@ const PenroseTerritoryGame = () => {
           onSkin={setSkinId}
           hintsOn={hintsOn}
           onHintsOn={setHintsOn}
+          atariOn={atariOn}
+          onAtariOn={setAtariOn}
           onClose={() => setShowPrefs(false)}
         />
       )}

@@ -37,6 +37,23 @@ export const groupAt = (tiles: GraphTile[], stones: Stone[], start: number) => {
   return { members, liberties };
 };
 
+// A group down to its last liberty (in atari): whose it is, its tiles and
+// that liberty.
+export type AtariGroup = { player: Player; members: number[]; liberty: number };
+
+// Every group in atari, each listed once, in the order of its first tile.
+export const groupsInAtari = (tiles: GraphTile[], stones: Stone[]): AtariGroup[] => {
+  const seen = new Set<number>();
+  const found: AtariGroup[] = [];
+  stones.forEach((s, i) => {
+    if (s === 0 || seen.has(i)) return;
+    const { members, liberties } = groupAt(tiles, stones, i);
+    members.forEach(m => seen.add(m));
+    if (liberties.size === 1) found.push({ player: s, members, liberty: [...liberties][0] });
+  });
+  return found;
+};
+
 export const positionKey = (stones: Stone[]) => stones.join('');
 
 // Plays `player` on tile `id`. Opponent groups left without liberties are

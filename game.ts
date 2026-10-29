@@ -4,14 +4,14 @@
 // only draws it; nothing here touches the page.
 
 import { buildBoard } from './penrose-board';
-import { opponentOf, playMove, positionKey, scoreArea } from './go-engine';
+import { groupsInAtari, opponentOf, playMove, positionKey, scoreArea, type AtariGroup } from './go-engine';
 import {
   BOARD_H, BOARD_W, TILE_SIZE, candidateVertices, isOutsidePlayfield, tileAtPoint, type Candidate
 } from './opening';
 
 import type { Player, Point, Score, Stone, Tile, TileType } from './types';
 
-export type { Player, Score, Stone, Tile };
+export type { AtariGroup, Player, Score, Stone, Tile };
 // 'ai' plays against the computer (as Player 2); 'two' is two people.
 export type Mode = 'ai' | 'two';
 
@@ -198,6 +198,26 @@ export const shownScore = (g: GameState): Score => {
   const c = { 1: 0, 2: 0 };
   g.stones.forEach(s => { if (s) c[s] += 1; });
   return c;
+};
+
+// The groups in atari while the game is played: none before the board
+// exists or once the game is over.
+export const ataris = (g: GameState): AtariGroup[] =>
+  g.tiles && !g.gameOver ? groupsInAtari(g.tiles, g.stones) : [];
+
+// The atari warning: for each player with tiles in atari, how many, e.g.
+// "Your 3 tiles are in atari; the computer's tile is in atari." Empty when
+// there are none.
+export const atariText = (mode: Mode, groups: AtariGroup[]) => {
+  const owner = (p: Player) => (mode === 'ai' ? (p === 1 ? 'your' : "the computer's") : `Player ${p}'s`);
+  const parts = ([1, 2] as const).flatMap(p => {
+    const n = groups.filter(x => x.player === p).reduce((sum, x) => sum + x.members.length, 0);
+    if (n === 0) return [];
+    return [n === 1 ? `${owner(p)} tile is in atari` : `${owner(p)} ${n} tiles are in atari`];
+  });
+  if (!parts.length) return '';
+  const text = `${parts.join('; ')}.`;
+  return text[0].toUpperCase() + text.slice(1);
 };
 
 // The line above the status: whose turn it is.

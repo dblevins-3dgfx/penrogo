@@ -1,4 +1,5 @@
-// Each player's score and captures, whose turn it is, and the status line.
+// Each player's score and captures, whose turn it is, the status line and
+// the atari warning.
 import { playerName, shownScore, turnText, type GameState, type Player } from '../game';
 import type { PlayerStyle } from '../skins';
 
@@ -6,9 +7,10 @@ type ScoreboardProps = {
   game: GameState;
   panel: string; // the skin's panel classes
   players: { 1: PlayerStyle; 2: PlayerStyle };
+  warning: string; // the atari warning, or ''
 };
 
-const Scoreboard = ({ game, panel, players }: ScoreboardProps) => {
+const Scoreboard = ({ game, panel, players, warning }: ScoreboardProps) => {
   const score = shownScore(game);
   const side = (p: Player) => (
     <div className="text-center">
@@ -30,6 +32,9 @@ const Scoreboard = ({ game, panel, players }: ScoreboardProps) => {
         </div>
         {game.message && (
           <div className="text-yellow-300 text-xs sm:text-sm">{game.message}</div>
+        )}
+        {warning && (
+          <div className="text-red-300 text-xs sm:text-sm font-semibold">{warning}</div>
         )}
       </div>
       {side(2)}

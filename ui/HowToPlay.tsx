@@ -24,6 +24,7 @@ const HowToPlay = ({ panel, players, isTouchDevice, onClose }: HowToPlayProps) =
       <li>Players then take turns claiming any empty tile</li>
       <li>Tiles that share an edge are neighbors. A group of your tiles is captured, and removed, when none of its neighbors are empty</li>
       <li>You can't claim a tile that would leave your own group with no empty neighbors (suicide), or that repeats an earlier position (ko)</li>
+      <li>A group with only one empty neighbor left is in atari: it can be captured next move. Groups in atari are outlined in red, with a red ring on their last empty neighbor, so you can save yours or capture theirs. The warnings can be turned off in Preferences</li>
       <li>Pass when you have nothing useful to play. Two passes in a row end the game</li>
       <li>Stuck? Press Hint and the computer highlights a good move for you, or suggests passing. Hints can be turned off in Preferences (the gear button)</li>
       <li>Score: tiles you hold plus empty areas surrounded only by your tiles. Surrounded areas are tinted when the game ends</li>

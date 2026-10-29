@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  HINT_MOVE, HINT_PASS, HINT_THINKING, OPENING_HINT, THINKING, gameReducer, initialGame, isComputerTurn, isHumanTurn,
+  HINT_MOVE, HINT_PASS, atariText, ataris, HINT_THINKING, OPENING_HINT, THINKING, gameReducer, initialGame, isComputerTurn, isHumanTurn,
   placeAction, playerName, resultText, shownScore, targetAt, turnText, type GameAction, type GameState
 } from './game';
 import { BOARD_W, COMPUTER_OPENING, candidateVertices } from './opening';
@@ -318,4 +318,29 @@ test('clearing a hint (hints turned off) removes it and its message', () => {
   assert.equal(cleared.message, '');
   assert.equal(run(g, { type: 'clearHint' }), g, 'nothing to clear');
   assert.equal(run(run(g, { type: 'askHint' }), { type: 'clearHint' }).hint, null, 'while being looked for');
+});
+
+// Spec 7, Atari warnings
+test('the groups in atari are found during play, not before the board exists or after the end', () => {
+  const g = opened();
+  const o = lastOf(g);
+  const [free, ...rest] = tilesOf(g)[o].neighbors;
+  // Player 2 on every neighbor of the opening stone but one
+  const stones = g.stones.map((s, i) => (rest.includes(i) ? 2 : s));
+  const atari = { ...g, stones };
+  assert.deepEqual(ataris(atari).find(x => x.player === 1), { player: 1, members: [o], liberty: free });
+  assert.deepEqual(ataris(g), [], 'nothing in atari after the opening');
+  assert.deepEqual(ataris(started()), [], 'no board yet');
+  assert.deepEqual(ataris({ ...atari, gameOver: { 1: 0, 2: 0 } }), [], 'the game is over');
+});
+
+test('the atari warning says whose tiles are in atari, and how many', () => {
+  const g1 = { player: 1 as const, members: [0, 4], liberty: 5 };
+  const g1b = { player: 1 as const, members: [7], liberty: 8 };
+  const g2 = { player: 2 as const, members: [9], liberty: 10 };
+  assert.equal(atariText('ai', []), '');
+  assert.equal(atariText('ai', [g1]), 'Your 2 tiles are in atari.');
+  assert.equal(atariText('ai', [g2]), "The computer's tile is in atari.");
+  assert.equal(atariText('ai', [g1, g1b, g2]), "Your 3 tiles are in atari; the computer's tile is in atari.");
+  assert.equal(atariText('two', [g1, g2]), "Player 1's 2 tiles are in atari; Player 2's tile is in atari.");
 });
