@@ -86,7 +86,7 @@ const PenroseTerritoryGame = () => {
     <div className={`safe-area [--pad:0.5rem] sm:[--pad:0.75rem] w-full h-dvh overflow-hidden ${skin.chrome.page} flex flex-col items-center`}>
       <div className="max-w-6xl landscape:max-w-none w-full h-full flex flex-col landscape:flex-row gap-2">
         <div className="flex flex-col gap-2 short:gap-1.5 landscape:order-last landscape:flex-1 landscape:min-w-72 landscape:max-w-md landscape:min-h-0 landscape:overflow-y-auto">
-          <Header skin={skin} onSkin={setSkinId} onPrefs={() => setShowPrefs(true)} onHelp={() => setShowHelp(true)} />
+          <Header skin={skin} onPrefs={() => setShowPrefs(true)} onHelp={() => setShowHelp(true)} />
           <Scoreboard game={game} panel={panel} players={players} />
           <Controls
             game={game}
@@ -125,7 +125,14 @@ const PenroseTerritoryGame = () => {
       </div>
 
       {showPrefs && (
-        <Preferences panel={panel} hintsOn={hintsOn} onHintsOn={setHintsOn} onClose={() => setShowPrefs(false)} />
+        <Preferences
+          panel={panel}
+          skinId={skinId}
+          onSkin={setSkinId}
+          hintsOn={hintsOn}
+          onHintsOn={setHintsOn}
+          onClose={() => setShowPrefs(false)}
+        />
       )}
       {showHelp && (
         <HowToPlay panel={panel} players={players} isTouchDevice={isTouchDevice} onClose={() => setShowHelp(false)} />

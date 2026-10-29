@@ -1,10 +1,15 @@
-// The Preferences dialog: settings that change how the game helps the
-// player. Each change takes effect at once and is remembered in this
-// browser.
+// The Preferences dialog: the skin, and settings that change how the game
+// helps the player. Each change takes effect at once and is remembered in
+// this browser.
+import { Check } from 'lucide-react';
 import Dialog from './Dialog';
+import SkinPreview from './SkinPreview';
+import { SKINS } from '../skins';
 
 type PreferencesProps = {
   panel: string; // the skin's panel classes
+  skinId: string;
+  onSkin: (id: string) => void;
   hintsOn: boolean;
   onHintsOn: (on: boolean) => void;
   onClose: () => void;
@@ -31,8 +36,37 @@ const Toggle = ({ label, detail, on, onChange }: { label: string; detail: string
   </label>
 );
 
-const Preferences = ({ panel, hintsOn, onHintsOn, onClose }: PreferencesProps) => (
+// Every skin as a card with a preview; the chosen one is outlined and ticked
+const SkinChooser = ({ skinId, onSkin }: { skinId: string; onSkin: (id: string) => void }) => (
+  <div role="radiogroup" aria-label="Skin" className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mt-1 mb-3">
+    {SKINS.map(k => {
+      const chosen = k.id === skinId;
+      return (
+        <button
+          key={k.id}
+          role="radio"
+          aria-checked={chosen}
+          onClick={() => onSkin(k.id)}
+          className={`rounded-lg p-1.5 text-left bg-slate-800/60 hover:bg-slate-700/60 ring-2 ${
+            chosen ? 'ring-white' : 'ring-transparent'
+          }`}
+        >
+          <SkinPreview skin={k} />
+          <span className="flex items-center justify-between mt-1 px-0.5 text-sm text-white">
+            {k.name}
+            {chosen && <Check size={16} aria-hidden="true" />}
+          </span>
+        </button>
+      );
+    })}
+  </div>
+);
+
+const Preferences = ({ panel, skinId, onSkin, hintsOn, onHintsOn, onClose }: PreferencesProps) => (
   <Dialog title="Preferences" panel={panel} onClose={onClose}>
+    <h3 className="text-white font-semibold">Skin</h3>
+    <p className="text-slate-400 text-xs sm:text-sm">How the board and page look. It never changes the game.</p>
+    <SkinChooser skinId={skinId} onSkin={onSkin} />
     <Toggle
       label="Hints"
       detail="Show a Hint button that highlights a good move for the player to move (or suggests passing)."

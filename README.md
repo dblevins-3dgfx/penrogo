@@ -49,7 +49,8 @@ One-time setup: repository **Settings → Pages → Build and deployment → Sou
   - `useGame.ts`: the game reducer as React state, plus the Web Worker searches: the computer's turn (and its opening pause) and hints
   - `useSettings.ts`: the skin, thinking time and hints setting, saved in the browser
   - `Header.tsx`, `Scoreboard.tsx`, `Controls.tsx`: the pieces of the page
-  - `Dialog.tsx`, `HowToPlay.tsx`, `Preferences.tsx`: the dialogs (a shared overlay, the rules, and the settings such as Hints)
+  - `Dialog.tsx`, `HowToPlay.tsx`, `Preferences.tsx`: the dialogs (a shared overlay, the rules, and the settings: skin and Hints)
+  - `SkinPreview.tsx`: a skin's preview card picture, drawn with its own hooks
   - `BoardCanvas.tsx`: the board canvas and the skin's effects overlay, drawing and pointer, wheel and right-click input
 - `prefs.ts`: the saved settings' keys, choices and how a saved value is read back
 - `game.ts`: the game's state and moves as a pure reducer (opening, claiming, passing, the end), plus the status line, the scoreboard and what the pointer is over
@@ -75,10 +76,10 @@ One-time setup: repository **Settings → Pages → Build and deployment → Sou
 
 ## Adding a skin
 
-1. Create a folder `skins/<name>/` with an `index.ts` whose default export is a `Skin` (see `skins/types.ts`): an `id`, a `name` for the picker, an optional `order`, Tailwind classes for the page (`chrome`), optional `players` colors for the page text (default blue and red), and four canvas hooks: `drawBackground`, `drawTile`, `drawLastMove` and `drawTarget`.
+1. Create a folder `skins/<name>/` with an `index.ts` whose default export is a `Skin` (see `skins/types.ts`): an `id`, a `name` for its card in Preferences, an optional `order`, Tailwind classes for the page (`chrome`), optional `players` colors for the page text (default blue and red), and four canvas hooks: `drawBackground`, `drawTile`, `drawLastMove` and `drawTarget`.
 2. Optionally add animations with `createEffects()`, returning an object that implements `SkinEffects`: it gets an overlay canvas plus events (stone placed, stones captured, board created) and can take over drawing the last move and the hover preview. `skins/dazzle/effects.ts` is a full example.
 
-That's all: the skin appears in the picker automatically, and no other file needs to change. `skins/plain-jane/index.ts` is the simplest example to copy.
+That's all: the skin appears in Preferences automatically, with a preview drawn by its own hooks, and no other file needs to change. `skins/plain-jane/index.ts` is the simplest example to copy.
 
 If the dev server was already running when you created the folder, Tailwind may not have picked up the new skin's classes yet (the page colors look missing): restart the dev server or re-save `src/index.css`. Production builds are unaffected.
 
