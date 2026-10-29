@@ -39,8 +39,14 @@ One-time setup, needed before the first deploy: repository **Settings → Pages 
 
 ## Layout
 
-- `penrose-territory.tsx`: the game component (drawing, controls, the computer's turn)
-- `game.ts`: the game's state and moves as a pure reducer (opening, claiming, passing, the end), plus the status line and scoreboard
+- `penrose-territory.tsx`: the game screen, wiring the hooks to the components; it also holds the opening tile's type and rotation, the pointer position and the How to Play switch
+- `ui/`: the React hooks and components
+  - `useGame.ts`: the game reducer as React state, plus the computer's turn (the opening pause and the Web Worker search)
+  - `useSettings.ts`: the skin and thinking time, saved in the browser
+  - `Header.tsx`, `Scoreboard.tsx`, `Controls.tsx`, `HowToPlay.tsx`: the pieces of the page
+  - `BoardCanvas.tsx`: the board canvas and the skin's effects overlay, drawing and pointer, wheel and right-click input
+- `prefs.ts`: the saved settings' keys, choices and how a saved value is read back
+- `game.ts`: the game's state and moves as a pure reducer (opening, claiming, passing, the end), plus the status line, the scoreboard and what the pointer is over
 - `go-engine.ts`: Go rules on the tile graph and the computer players (Monte Carlo tree search, plus the older heuristic player as a baseline)
 - `ai-worker.ts`: runs the computer's search in a Web Worker
 - `penrose-board.ts`: Penrose tiling generation and the tile adjacency graph

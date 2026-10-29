@@ -5,7 +5,10 @@
 
 import { buildBoard } from './penrose-board';
 import { opponentOf, playMove, positionKey, scoreArea } from './go-engine';
-import { BOARD_H, BOARD_W, TILE_SIZE, candidateVertices, isOutsidePlayfield, type Candidate, type Point } from './opening';
+import {
+  BOARD_H, BOARD_W, TILE_SIZE, candidateVertices, isOutsidePlayfield, tileAtPoint,
+  type Candidate, type Point, type TileType
+} from './opening';
 
 export type Player = 1 | 2;
 export type Stone = 0 | Player;
@@ -171,4 +174,34 @@ export const turnText = (g: GameState) => {
   if (!g.started) return 'Press Start';
   if (g.gameOver) return 'Game Over';
   return `${playerName(g.mode, g.currentPlayer)}'s Turn`;
+};
+
+// What a point on the board is over, for the preview and for placing: the
+// opening tile (of the chosen type and rotation, centered on the point) and
+// whether it fits, or the board tile under it and whether claiming it is
+// legal. Null when it isn't a person's turn or the point is off every tile.
+export type Target =
+  | { kind: 'opening'; cand: Candidate; verts: Point[]; legal: boolean }
+  | { kind: 'tile'; id: number; verts: Point[]; legal: boolean };
+
+export const targetAt = (g: GameState, pos: Point | null, type: TileType, rotation: number): Target | null => {
+  if (!pos || !isHumanTurn(g)) return null;
+  if (!g.tiles) {
+    const cand = { type, x: pos.x, y: pos.y, rotation };
+    const verts = candidateVertices(cand);
+    return { kind: 'opening', cand, verts, legal: !isOutsidePlayfield(verts) };
+  }
+  const id = tileAtPoint(g.tiles, pos.x, pos.y);
+  if (id < 0) return null;
+  const r = playMove(g.tiles, g.stones, g.history, id, g.currentPlayer);
+  return { kind: 'tile', id, verts: g.tiles[id].verts, legal: r.ok };
+};
+
+// The action placing on a target: the opening, or claiming the tile. Null
+// for an illegal opening (it is not placed). An illegal tile is still
+// claimed, so the status line says why not.
+export const placeAction = (t: Target | null): GameAction | null => {
+  if (!t) return null;
+  if (t.kind === 'opening') return t.legal ? { type: 'open', cand: t.cand } : null;
+  return { type: 'claim', id: t.id };
 };
