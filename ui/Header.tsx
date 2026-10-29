@@ -9,8 +9,8 @@ type HeaderProps = {
 };
 
 const Header = ({ skin, onSkin, onHelp }: HeaderProps) => (
-  <div className="flex items-center justify-between">
-    <h1 className={`text-xl sm:text-2xl font-bold ${skin.chrome.title}`}>Penrogo</h1>
+  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+    <h1 className={`text-xl sm:text-2xl short:text-lg font-bold ${skin.chrome.title}`}>Penrogo</h1>
     <div className="flex items-center gap-3 sm:gap-4">
       <label className="text-slate-300 text-sm flex items-center gap-2">
         <Palette size={18} />
@@ -27,10 +27,12 @@ const Header = ({ skin, onSkin, onHelp }: HeaderProps) => (
       </label>
       <button
         onClick={onHelp}
+        aria-label="How to Play"
         className="text-slate-300 hover:text-white flex items-center gap-1 text-sm"
       >
         <CircleHelp size={20} />
-        How to Play
+        {/* On a phone held sideways, just the icon */}
+        <span className="short:hidden">How to Play</span>
       </button>
     </div>
   </div>

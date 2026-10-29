@@ -153,7 +153,8 @@ const PlayControls = (props: ControlsProps) => {
 };
 
 const Controls = (props: ControlsProps) => (
-  <div className={`${props.panel} rounded-lg p-2 flex gap-2 sm:gap-3 items-center justify-center flex-wrap`}>
+  // On a phone held sideways, every button is shorter so the panel fits
+  <div className={`${props.panel} rounded-lg p-2 flex gap-2 sm:gap-3 short:gap-1.5 items-center justify-center flex-wrap short:[&_button]:py-1.5 short:[&_button]:px-3`}>
     {props.game.started ? <PlayControls {...props} /> : <StartPanel {...props} />}
   </div>
 );

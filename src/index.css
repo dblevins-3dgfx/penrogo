@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* short: a phone held sideways (landscape and under 30rem tall), where the
+   side panel next to the board has to be compact to fit */
+@custom-variant short (@media (orientation: landscape) and (max-height: 30rem));
+
 /* On touch screens: no double-tap zoom, and no text selection loupe or
    callout on a long press, so the game feels like an app */
 html {
