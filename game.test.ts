@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  OPENING_HINT, THINKING, gameReducer, initialGame, isComputerTurn, isHumanTurn,
+  HINT_MOVE, HINT_PASS, HINT_THINKING, OPENING_HINT, THINKING, gameReducer, initialGame, isComputerTurn, isHumanTurn,
   placeAction, playerName, resultText, shownScore, targetAt, turnText, type GameAction, type GameState
 } from './game';
 import { BOARD_W, COMPUTER_OPENING, candidateVertices } from './opening';
@@ -248,4 +248,74 @@ test('placing on a target: the opening only if it fits; a tile is claimed even i
   const o = opened();
   const taken = targetAt(o, centroidOf(tilesOf(o)[lastOf(o)].verts), 'kite', 0);
   assert.deepEqual(placeAction(taken), { type: 'claim', id: lastOf(o) });
+});
+
+// Spec 6, Hints
+test('asking for a hint looks for a move for the player to move', () => {
+  const before = opened();
+  const g = run(before, { type: 'askHint' });
+  assert.deepEqual(g.hint, { status: 'thinking', player: 2 });
+  assert.equal(g.message, HINT_THINKING);
+  assert.equal(g.stones, before.stones, 'the board is unchanged');
+  assert.equal(g.currentPlayer, before.currentPlayer, 'and so is the turn');
+});
+
+test('a hint can only be asked for on a person\'s turn, once the board exists', () => {
+  const idle = initialGame();
+  assert.equal(run(idle, { type: 'askHint' }), idle, 'before the game starts');
+  const noBoard = started();
+  assert.equal(run(noBoard, { type: 'askHint' }), noBoard, 'before the opening');
+  const computer = opened('ai');
+  assert.equal(run(computer, { type: 'askHint' }), computer, 'on the computer\'s turn');
+  const over = run(opened(), { type: 'pass' }, { type: 'pass' });
+  assert.equal(run(over, { type: 'askHint' }), over, 'after the game ends');
+  const asking = run(opened(), { type: 'askHint' });
+  assert.equal(run(asking, { type: 'askHint' }), asking, 'while one is being looked for');
+});
+
+test('the hint found is shown: a tile, or a suggestion to pass', () => {
+  const asking = run(opened(), { type: 'askHint' });
+  const id = quietTile(asking);
+  const tile = run(asking, { type: 'hint', move: id });
+  assert.deepEqual(tile.hint, { status: 'shown', move: id });
+  assert.equal(tile.message, HINT_MOVE);
+  const pass = run(asking, { type: 'hint', move: null });
+  assert.deepEqual(pass.hint, { status: 'shown', move: null });
+  assert.equal(pass.message, HINT_PASS);
+});
+
+test('a hint nobody is waiting for is dropped', () => {
+  const g = opened();
+  assert.equal(run(g, { type: 'hint', move: quietTile(g) }), g);
+  // Asked, then a move was played before the answer came
+  const moved = run(g, { type: 'askHint' }, { type: 'claim', id: quietTile(g) });
+  assert.equal(moved.hint, null);
+  assert.equal(run(moved, { type: 'hint', move: quietTile(moved) }), moved);
+});
+
+test('the next move, a pass or New Game clears the hint', () => {
+  const shown = (g: GameState) => run(g, { type: 'askHint' }, { type: 'hint', move: quietTile(g) });
+  const g = opened();
+  assert.equal(run(shown(g), { type: 'claim', id: quietTile(g) }).hint, null);
+  assert.equal(run(shown(g), { type: 'pass' }).hint, null);
+  assert.equal(run(shown(g), { type: 'reset' }).hint, null);
+  assert.equal(run(shown(g), { type: 'pass' }, { type: 'pass' }).hint, null, 'the game ending');
+});
+
+test('an illegal click leaves the hint in place', () => {
+  const g = opened();
+  const shown = run(g, { type: 'askHint' }, { type: 'hint', move: quietTile(g) });
+  const after = run(shown, { type: 'claim', id: lastOf(g) });
+  assert.equal(after.hint, shown.hint);
+  assert.equal(after.message, 'That tile is taken.');
+});
+
+test('clearing a hint (hints turned off) removes it and its message', () => {
+  const g = opened();
+  const shown = run(g, { type: 'askHint' }, { type: 'hint', move: quietTile(g) });
+  const cleared = run(shown, { type: 'clearHint' });
+  assert.equal(cleared.hint, null);
+  assert.equal(cleared.message, '');
+  assert.equal(run(g, { type: 'clearHint' }), g, 'nothing to clear');
+  assert.equal(run(run(g, { type: 'askHint' }), { type: 'clearHint' }).hint, null, 'while being looked for');
 });

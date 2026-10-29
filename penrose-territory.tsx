@@ -1,8 +1,8 @@
 // The game screen. It wires the game (ui/useGame.ts) and the remembered
 // settings (ui/useSettings.ts) to the pieces of the page: the header, the
-// scoreboard, the controls, the board and the How to Play overlay. It also
-// holds what only the screen needs: the opening tile's type and rotation,
-// where the pointer is, and whether How to Play is open. The rules are in
+// scoreboard, the controls, the board, and the Preferences and How to Play
+// dialogs. It also holds what only the screen needs: the opening tile's
+// type and rotation, where the pointer is, and which dialog is open. The rules are in
 // game.ts, opening.ts and go-engine.ts.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { placeAction, targetAt } from './game';
@@ -15,16 +15,18 @@ import Scoreboard from './ui/Scoreboard';
 import Controls from './ui/Controls';
 import BoardCanvas from './ui/BoardCanvas';
 import HowToPlay from './ui/HowToPlay';
+import Preferences from './ui/Preferences';
 
 const isTouchDevice = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
 
 const PenroseTerritoryGame = () => {
-  const { skinId, setSkinId, thinkSeconds, setThinkSeconds } = useSettings();
+  const { skinId, setSkinId, thinkSeconds, setThinkSeconds, hintsOn, setHintsOn } = useSettings();
   const [game, dispatch] = useGame(thinkSeconds);
   const [tileType, setTileType] = useState<TileType>('kite');
   const [rotation, setRotation] = useState(0);
   const [hoveredPos, setHoveredPos] = useState<Point | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [showPrefs, setShowPrefs] = useState(false);
   const skin = skinById(skinId);
   const players = skin.players || DEFAULT_PLAYERS;
   const panel = skin.chrome.panel;
@@ -50,6 +52,11 @@ const PenroseTerritoryGame = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [game.started, rotate]);
+
+  // Turning hints off takes away a hint already shown (or being looked for)
+  useEffect(() => {
+    if (!hintsOn && game.hint) dispatch({ type: 'clearHint' });
+  }, [hintsOn, game.hint, dispatch]);
 
   const start = () => {
     setRotation(0);
@@ -79,7 +86,7 @@ const PenroseTerritoryGame = () => {
     <div className={`safe-area [--pad:0.5rem] sm:[--pad:0.75rem] w-full h-dvh overflow-hidden ${skin.chrome.page} flex flex-col items-center`}>
       <div className="max-w-6xl landscape:max-w-none w-full h-full flex flex-col landscape:flex-row gap-2">
         <div className="flex flex-col gap-2 short:gap-1.5 landscape:order-last landscape:flex-1 landscape:min-w-72 landscape:max-w-md landscape:min-h-0 landscape:overflow-y-auto">
-          <Header skin={skin} onSkin={setSkinId} onHelp={() => setShowHelp(true)} />
+          <Header skin={skin} onSkin={setSkinId} onPrefs={() => setShowPrefs(true)} onHelp={() => setShowHelp(true)} />
           <Scoreboard game={game} panel={panel} players={players} />
           <Controls
             game={game}
@@ -94,6 +101,7 @@ const PenroseTerritoryGame = () => {
             isTouchDevice={isTouchDevice}
             target={target}
             onPlace={placeTarget}
+            hintsOn={hintsOn}
             onStart={start}
             onNewGame={newGame}
           />
@@ -116,6 +124,9 @@ const PenroseTerritoryGame = () => {
         </div>
       </div>
 
+      {showPrefs && (
+        <Preferences panel={panel} hintsOn={hintsOn} onHintsOn={setHintsOn} onClose={() => setShowPrefs(false)} />
+      )}
       {showHelp && (
         <HowToPlay panel={panel} players={players} isTouchDevice={isTouchDevice} onClose={() => setShowHelp(false)} />
       )}

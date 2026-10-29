@@ -4,6 +4,7 @@
 
 export const SKIN_STORAGE_KEY = 'penrogo.skin';
 export const THINK_STORAGE_KEY = 'penrogo.thinkSeconds';
+export const HINTS_STORAGE_KEY = 'penrogo.hints';
 
 // How long the computer may think per move, in seconds.
 export const THINK_OPTIONS = [1, 3, 5, 10];
@@ -19,3 +20,8 @@ export const parseThinkSeconds = (raw: string | null): number => {
 // A saved skin id, or the fallback if it is missing or names no skin.
 export const parseSkinId = (raw: string | null, ids: string[], fallback: string): string =>
   raw !== null && ids.includes(raw) ? raw : fallback;
+
+// Whether the Hint button is available. Saved as 'on' or 'off'; anything
+// else (including nothing saved) means on, so new players have it.
+export const parseHints = (raw: string | null): boolean => raw !== 'off';
+export const formatHints = (on: boolean): string => (on ? 'on' : 'off');
