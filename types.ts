@@ -1,4 +1,4 @@
-// Types shared by the board, the rules, the computer players, the game and
+// Types shared by the board, the rules, the computer player, the game and
 // the skins.
 
 export type Point = { x: number; y: number };
