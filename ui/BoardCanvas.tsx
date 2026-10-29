@@ -52,7 +52,7 @@ const useSkinEffects = (skin: Skin, game: GameState, target: Target | null,
     if (event.kind === 'opening') {
       fx?.cascade?.(event.tiles, event.verts);
       fx?.place?.(event.verts, event.player);
-    } else {
+    } else if (tiles) {
       fx?.place?.(tiles[event.id].verts, event.player);
       if (event.lost.length) fx?.capture?.(event.lost.map(i => tiles[i].verts), opponentOf(event.player), event.player);
     }
@@ -80,6 +80,7 @@ const drawBoard = (canvas: HTMLCanvasElement, skin: Skin, game: GameState, targe
   fxDrawsLastMove: boolean, fxDrawsTarget: boolean) => {
   const { tiles, stones, lastMove, gameOver, currentPlayer } = game;
   const ctx = canvas.getContext('2d');
+  if (!ctx) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   skin.drawBackground(ctx, canvas.width, canvas.height);
 
@@ -127,7 +128,7 @@ const BoardCanvas = ({ skin, game, target, onHover, onClick, onRotate }: BoardCa
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !rotating) return;
-    const swipe = { total: 0, timer: null };
+    const swipe: { total: number; timer?: ReturnType<typeof setTimeout> } = { total: 0 };
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
@@ -150,7 +151,7 @@ const BoardCanvas = ({ skin, game, target, onHover, onClick, onRotate }: BoardCa
   // A pointer event's CSS pixel position in the canvas's internal 800 x 600
   // drawing coordinates (the canvas is scaled to fit the window)
   const canvasPoint = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
-    const canvas = canvasRef.current;
+    const canvas = e.currentTarget;
     const rect = canvas.getBoundingClientRect();
     const touch = e.pointerType === 'touch';
     return {

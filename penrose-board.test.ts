@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildBoard, generatePatch } from './penrose-board';
+import type { Point, Tile } from './types';
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 const L = 60;
@@ -9,7 +10,7 @@ const H = 600;
 
 // A kite with tip O at (x, y), axis pointing at `deg`, in the game's vertex
 // order [O, B, C, D].
-const kiteAt = (x, y, deg) => {
+const kiteAt = (x: number, y: number, deg: number): Point[] => {
   const r = (deg * Math.PI) / 180;
   const d = (36 * Math.PI) / 180;
   return [
@@ -21,15 +22,15 @@ const kiteAt = (x, y, deg) => {
 };
 
 // The same for a dart [M, N, A', N'].
-const dartAt = (x, y, deg) => {
+const dartAt = (x: number, y: number, deg: number): Point[] => {
   const v = kiteAt(x, y, deg);
   const r = (deg * Math.PI) / 180;
   v[2] = { x: x + (L / PHI) * Math.cos(r), y: y + (L / PHI) * Math.sin(r) };
   return v;
 };
 
-const dist = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
-const near = (a, b, tol = 1e-6) => Math.abs(a - b) <= tol;
+const dist = (p: Point, q: Point) => Math.hypot(p.x - q.x, p.y - q.y);
+const near = (a: number, b: number, tol = 1e-6) => Math.abs(a - b) <= tol;
 
 const kiteBoard = buildBoard('kite', kiteAt(400, 300, 0), W, H, L);
 const dartBoard = buildBoard('dart', dartAt(380, 290, 108), W, H, L);
@@ -89,8 +90,8 @@ test('only tiles inside the board are kept, about 220', () => {
 
 // Spec 4.4: neighbors share a full edge; interior tiles have four
 test('neighbors share a full edge, both ways', () => {
-  const key = (p) => `${Math.round(p.x)},${Math.round(p.y)}`;
-  const edgesOf = (t) => [0, 1, 2, 3].map(e => [key(t.verts[e]), key(t.verts[(e + 1) % 4])].sort().join('|'));
+  const key = (p: Point) => `${Math.round(p.x)},${Math.round(p.y)}`;
+  const edgesOf = (t: Tile) => [0, 1, 2, 3].map(e => [key(t.verts[e]), key(t.verts[(e + 1) % 4])].sort().join('|'));
   const { tiles } = kiteBoard;
   for (const t of tiles) {
     const mine = new Set(edgesOf(t));

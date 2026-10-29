@@ -5,11 +5,11 @@
 // default export is a Skin. It is picked up automatically (see index.ts);
 // no other file needs to change.
 
-export type Point = { x: number; y: number };
+import type { Player, Point, Stone } from '../types';
 
+export type { Player, Point };
 // 0 = none, 1 = Player 1, 2 = Player 2 (or the computer)
-export type Owner = 0 | 1 | 2;
-export type Player = 1 | 2;
+export type Owner = Stone;
 
 export interface TileState {
   stone: Owner; // who holds the tile
