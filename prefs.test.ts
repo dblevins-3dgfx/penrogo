@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ATARI_STORAGE_KEY, DEFAULT_THINK_SECONDS, HINTS_STORAGE_KEY, THINK_OPTIONS, formatSwitch, parseSwitch, parseSkinId, parseThinkSeconds } from './prefs';
+import { UNDO_STORAGE_KEY, ATARI_STORAGE_KEY, DEFAULT_THINK_SECONDS, HINTS_STORAGE_KEY, THINK_OPTIONS, formatSwitch, parseSwitch, parseSkinId, parseThinkSeconds } from './prefs';
 
 // Spec 6: thinking time 1, 3 (default), 5 or 10 seconds, remembered
 test('the thinking time choices are 1, 3, 5 and 10 seconds, defaulting to 3', () => {
@@ -24,8 +24,8 @@ test('a saved skin is read back if it still exists; otherwise the fallback', () 
   assert.equal(parseSkinId('retired-skin', ids, 'plain'), 'plain', 'a skin since removed');
 });
 
-// Spec 6, Hints, and 7, Atari warnings: on unless turned off, remembered
-test('hints and atari warnings are on unless saved as off', () => {
+// Spec 5, Undo, 6, Hints, and 7, Atari warnings: on unless turned off, remembered
+test('undo, hints and atari warnings are on unless saved as off', () => {
   assert.equal(parseSwitch(null), true, 'nothing saved: on for new players');
   assert.equal(parseSwitch('on'), true);
   assert.equal(parseSwitch('off'), false);
@@ -34,6 +34,6 @@ test('hints and atari warnings are on unless saved as off', () => {
   assert.equal(parseSwitch(formatSwitch(true)), true, 'on round-trips');
 });
 
-test('hints and atari warnings are saved separately', () => {
-  assert.notEqual(ATARI_STORAGE_KEY, HINTS_STORAGE_KEY);
+test('undo, hints and atari warnings are saved separately', () => {
+  assert.equal(new Set([UNDO_STORAGE_KEY, ATARI_STORAGE_KEY, HINTS_STORAGE_KEY]).size, 3);
 });

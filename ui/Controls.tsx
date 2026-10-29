@@ -1,9 +1,10 @@
 // The panel under the scoreboard. Before a game: the mode, the computer's
 // thinking time and Start. During one: the opening tile's type and
 // rotation (until the board exists), Place on touch screens, Hint (when
-// hints are on), Pass (Skip Opening before the board exists) and New Game.
-import { Lightbulb, Play, RotateCcw, RotateCw, SkipForward } from 'lucide-react';
-import { isHumanTurn, type GameAction, type GameState, type Target } from '../game';
+// hints are on), Undo (when undo is on), Pass (Skip Opening before the
+// board exists) and New Game.
+import { Lightbulb, Play, RotateCcw, RotateCw, SkipForward, Undo2 } from 'lucide-react';
+import { isHumanTurn, undoDepth, type GameAction, type GameState, type Target } from '../game';
 import type { TileType } from '../opening';
 import { THINK_OPTIONS } from '../prefs';
 
@@ -21,6 +22,7 @@ type ControlsProps = {
   target: Target | null;
   onPlace: () => void;
   hintsOn: boolean;
+  undoOn: boolean;
   onStart: () => void;
   onNewGame: () => void;
 };
@@ -110,10 +112,11 @@ const OpeningControls = ({ tileType, onTileType, rotation, onRotate, isTouchDevi
 );
 
 const PlayControls = (props: ControlsProps) => {
-  const { game, dispatch, isTouchDevice, target, onPlace, hintsOn, onNewGame } = props;
+  const { game, dispatch, isTouchDevice, target, onPlace, hintsOn, undoOn, onNewGame } = props;
   const humanTurn = isHumanTurn(game);
   const canPlace = !!target && target.legal;
   const canHint = humanTurn && game.hint?.status !== 'thinking';
+  const canUndo = undoDepth(game) > 0;
   return (
     <>
       {!game.tiles && <OpeningControls {...props} />}
@@ -140,6 +143,19 @@ const PlayControls = (props: ControlsProps) => {
         >
           <Lightbulb size={20} />
           Hint
+        </button>
+      )}
+
+      {undoOn && (
+        <button
+          onClick={() => dispatch({ type: 'undo' })}
+          disabled={!canUndo}
+          className={`bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 ${
+            canUndo ? '' : 'opacity-50'
+          }`}
+        >
+          <Undo2 size={20} />
+          Undo
         </button>
       )}
 

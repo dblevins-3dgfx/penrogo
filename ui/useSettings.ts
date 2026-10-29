@@ -1,11 +1,11 @@
 // The settings remembered in this browser: the skin, the computer's
-// thinking time, whether hints are available and whether atari warnings
-// are shown. What a saved value means
+// thinking time, whether hints and undo are available and whether atari
+// warnings are shown. What a saved value means
 // is decided in prefs.ts.
 import { useState } from 'react';
 import { SKINS, DEFAULT_SKIN } from '../skins';
 import {
-  ATARI_STORAGE_KEY, HINTS_STORAGE_KEY, SKIN_STORAGE_KEY, THINK_STORAGE_KEY,
+  ATARI_STORAGE_KEY, HINTS_STORAGE_KEY, SKIN_STORAGE_KEY, THINK_STORAGE_KEY, UNDO_STORAGE_KEY,
   formatSwitch, parseSkinId, parseSwitch, parseThinkSeconds
 } from '../prefs';
 
@@ -31,6 +31,7 @@ export const useSettings = () => {
   const [thinkSeconds, setThinkSecondsState] = useState(() => parseThinkSeconds(read(THINK_STORAGE_KEY)));
   const [hintsOn, setHintsOnState] = useState(() => parseSwitch(read(HINTS_STORAGE_KEY)));
   const [atariOn, setAtariOnState] = useState(() => parseSwitch(read(ATARI_STORAGE_KEY)));
+  const [undoOn, setUndoOnState] = useState(() => parseSwitch(read(UNDO_STORAGE_KEY)));
 
   const setSkinId = (id: string) => {
     setSkinIdState(id);
@@ -49,6 +50,12 @@ export const useSettings = () => {
     setAtariOnState(on);
     write(ATARI_STORAGE_KEY, formatSwitch(on));
   };
+  const setUndoOn = (on: boolean) => {
+    setUndoOnState(on);
+    write(UNDO_STORAGE_KEY, formatSwitch(on));
+  };
 
-  return { skinId, setSkinId, thinkSeconds, setThinkSeconds, hintsOn, setHintsOn, atariOn, setAtariOn };
+  return {
+    skinId, setSkinId, thinkSeconds, setThinkSeconds, hintsOn, setHintsOn, atariOn, setAtariOn, undoOn, setUndoOn
+  };
 };

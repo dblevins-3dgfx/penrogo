@@ -27,6 +27,7 @@ const HowToPlay = ({ panel, players, isTouchDevice, onClose }: HowToPlayProps) =
       <li>A group with only one empty neighbor left is in atari: it can be captured next move. Groups in atari are outlined in red, with a red ring on their last empty neighbor, so you can save yours or capture theirs. The warnings can be turned off in Preferences</li>
       <li>Pass when you have nothing useful to play. Two passes in a row end the game</li>
       <li>Stuck? Press Hint and the computer highlights a good move for you, or suggests passing. Hints can be turned off in Preferences (the gear button)</li>
+      <li>Undo takes back your last move (against the computer, its reply too), so you can try something else. It can be turned off in Preferences</li>
       <li>Score: tiles you hold plus empty areas surrounded only by your tiles. Surrounded areas are tinted when the game ends</li>
     </ul>
     <p className="mt-4 text-xs text-slate-400">
