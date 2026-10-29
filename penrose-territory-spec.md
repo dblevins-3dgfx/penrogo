@@ -14,11 +14,11 @@ This replaces the original free-placement game (kept on the `original-game` bran
 |---|---|
 | Framework | React 19 (functional component, hooks) |
 | Build | Vite, TypeScript |
-| Rendering | HTML5 Canvas 2D, 800 x 600 internal resolution, scaled to the largest 4:3 size that fits the window |
+| Rendering | HTML5 Canvas 2D, 800 x 600 internal resolution, scaled to the largest 4:3 size that fits the window; a smaller board (section 4) is drawn scaled up to fill the canvas, skin, animations and all |
 | Styling | Tailwind CSS v4 utility classes |
 | Icons | lucide-react (`RotateCw`, `RotateCcw`, `Play`, `SkipForward`, `Lightbulb`, `Undo2`, `Settings`, `CircleHelp`, `Check`, `X`) |
-| Persistence | The chosen skin, the computer's thinking time, whether hints, atari warnings and undo are on are kept in the browser's localStorage; the game itself is in memory only |
-| Home screen | Installable as a home-screen web app (on an iPhone: Safari, Share, Add to Home Screen). `public/manifest.webmanifest` names it Penrogo and has it open full screen (`standalone`), with the icons `icon-192.png` and `icon-512.png` (the 192 also serves as the browser tab icon); `index.html` adds Apple's tags (`apple-touch-icon.png` at 180 x 180, full-screen capable, the title, a translucent status bar with white text over the dark page) and a dark slate theme color. The icon is drawn in the Go Classic skin, with its own drawing code: a sun of five kites on the kaya board, holding two slate (black) and two clamshell (white) stones and one empty point, with Go's ring marker on a black stone as the last move. Opened from the home screen, it keeps its own storage, separate from Safari's, so its skin and thinking time start at their defaults. It still needs the network to start (no offline play yet) |
+| Persistence | The chosen skin, the board size, the computer's level, whether hints, atari warnings and undo are on are kept in the browser's localStorage; the game itself is in memory only |
+| Home screen | Installable as a home-screen web app (on an iPhone: Safari, Share, Add to Home Screen). `public/manifest.webmanifest` names it Penrogo and has it open full screen (`standalone`), with the icons `icon-192.png` and `icon-512.png` (the 192 also serves as the browser tab icon); `index.html` adds Apple's tags (`apple-touch-icon.png` at 180 x 180, full-screen capable, the title, a translucent status bar with white text over the dark page) and a dark slate theme color. The icon is drawn in the Go Classic skin, with its own drawing code: a sun of five kites on the kaya board, holding two slate (black) and two clamshell (white) stones and one empty point, with Go's ring marker on a black stone as the last move. Opened from the home screen, it keeps its own storage, separate from Safari's, so its settings start at their defaults. It still needs the network to start (no offline play yet) |
 | Touch | The page reaches under the notch, rounded corners and home bar (`viewport-fit=cover`), and the page and the How to Play overlay pad themselves back in by the safe-area insets (`.safe-area`), so nothing sits under them. Double-tap zoom, text selection, the long-press callout and the tap highlight are turned off (`src/index.css`) |
 
 ## 3. Tiles
@@ -29,7 +29,7 @@ Kite and dart, long edge `L = 60` px, short edge `L / phi`. Vertex order: kite [
 
 1. **Patch.** Start from a sun of five kites (ten Robinson half-kites) and subdivide 7 times. Each half-kite becomes two half-kites and a half-dart; each half-dart becomes a half-kite and a half-dart; every piece shrinks by phi. Mirror halves sharing an axis are joined into whole tiles (about 4,900 tiles). The orientation of each piece in the subdivision rules was found by exhaustive search as the only choice that keeps Penrose's vertex coloring consistent and pairs every half with its mirror.
 2. **Alignment.** The patch is rotated and translated so the tile of the opening's type nearest the patch center coincides exactly with the opening tile.
-3. **Clipping.** Only tiles lying entirely inside the 800 x 600 board are kept (about 220).
+3. **Clipping.** Only tiles lying entirely inside the board are kept. The board is a 4:3 region whose size is chosen on the start screen (**Board**, for both modes): Small 448 x 336 (about 60 tiles), Medium 560 x 420 (about 100), Large 680 x 510 (about 155) or Full 800 x 600 (about 220, the default), in the same units as the tiles, so a smaller board is a smaller piece of the same tiling, for shorter games (as beginners play 9 x 9 Go before 19 x 19). It is drawn scaled up to fill the canvas, so its tiles look larger. The opening tile must lie inside the chosen board, and the computer opens at its center. The choice is remembered in the browser and applies from the next game; New Game keeps it.
 4. **Adjacency.** Two tiles are neighbors when they share a full edge. Interior tiles have exactly four neighbors, like points on a Go board.
 
 Verified: every tile has exact kite or dart geometry, there are no vertex-coloring conflicts, the kite to dart ratio is about phi, and the opening tile matches the placement exactly.
@@ -47,7 +47,16 @@ Verified: every tile has exact kite or dart geometry, there are no vertex-colori
 
 ## 6. Computer Opponent
 
-Plays Player 2 in vs Computer mode, using Monte Carlo tree search (`go-engine.ts`), run in a Web Worker (`ai-worker.ts`) so the page stays responsive. It thinks for a chosen time per move, on the device running the browser: 1, 3 (default), 5 or 10 seconds, picked on the start screen when vs Computer is selected ("Computer thinks"). Longer thinking means more playouts and stronger play. The choice is remembered in the browser's localStorage and applies from the next game.
+Plays Player 2 in vs Computer mode, using Monte Carlo tree search (`go-engine.ts`), run in a Web Worker (`ai-worker.ts`) so the page stays responsive. Its strength is a level picked on the start screen when vs Computer is selected (**Computer**):
+
+| Level | Search |
+|---|---|
+| Beginner | Stops after 300 playouts (or 1 second), and 30% of the time plays one of the next three most-visited moves at random instead of the best (a pass is never swapped for a move). Weaker on purpose |
+| Easy | 1 second per move |
+| Medium (default) | 3 seconds per move |
+| Strong | 10 seconds per move |
+
+It thinks on the device running the browser; longer thinking means more playouts and stronger play. The choice is remembered in the browser's localStorage and applies from the next game. A thinking time saved before levels existed picks the matching level once (1 s Easy, 3 or 5 s Medium, 10 s Strong).
 
 - **Search.** Each iteration walks down a tree of candidate moves, adds one new node, then finishes the game with a fast random playout, and records who won by area. Moves are chosen in the tree by UCT combined with RAVE (a move also gets credit when it is played later in the same playout), which learns quickly from few playouts. The most-visited root move is played.
 - **Playouts** use a light policy: capture the stone just played if it is in atari, save its own groups put in atari by that move, otherwise play a random legal move that neither fills its own eye nor puts itself in atari. Playouts use simple ko and no superko; the root moves are checked against the full rules (superko).
@@ -107,11 +116,11 @@ The look is chosen in the **Preferences** dialog (see section 8), at any time (e
 
 ## 8. Controls and Layout
 
-Same as `main`: mouse click to place; the scroll wheel, right-click (Shift for the other way) or Left/Right arrows rotate the opening tile on desktop; on touch devices the preview follows a finger drag (lifted 60 canvas units above it), rotate buttons are shown, and **Place** confirms. The page fills the visible window without scrolling. The header has the title, a gear button for the **Preferences** dialog (the skin, see section 7b, and the Hints, Atari warnings and Undo switches) and **How to Play** (the rules); both are dialogs over the page that Escape, the X or a click outside closes. In portrait the header, scoreboard and controls are stacked above the board, which scales to the largest 4:3 size that fits below them. In landscape (the window wider than tall) the board is on the left at the full height, narrowed if that would leave less than 18rem beside it, and the header, scoreboard and controls are in a panel on the right that takes the remaining width up to 28rem; the scoreboard puts whose turn it is on top, with the two scores below. On a phone held sideways (landscape and under 30rem tall) the panel is compact: the title, scores and buttons are smaller, so the panel fits without scrolling. Rotation controls appear only during the opening. **New Game** returns to the start screen, clearing the board, the scores and the capture counts; the chosen mode (2 Players or vs Computer) is kept.
+Same as `main`: mouse click to place; the scroll wheel, right-click (Shift for the other way) or Left/Right arrows rotate the opening tile on desktop; on touch devices the preview follows a finger drag (lifted 60 canvas units above it), rotate buttons are shown, and **Place** confirms. The page fills the visible window without scrolling. The header has the title, a gear button for the **Preferences** dialog (the skin, see section 7b, and the Hints, Atari warnings and Undo switches) and **How to Play** (the rules); both are dialogs over the page that Escape, the X or a click outside closes. In portrait the header, scoreboard and controls are stacked above the board, which scales to the largest 4:3 size that fits below them. In landscape (the window wider than tall) the board is on the left at the full height, narrowed if that would leave less than 18rem beside it, and the header, scoreboard and controls are in a panel on the right that takes the remaining width up to 28rem; the scoreboard puts whose turn it is on top, with the two scores below. On a phone held sideways (landscape and under 30rem tall) the panel is compact: the title, scores and buttons are smaller, so the panel fits without scrolling. Rotation controls appear only during the opening. Before a game the controls offer the mode (2 Players or vs Computer), the **Board** size (section 4), the **Computer** level (section 6, vs Computer only) and Start. **New Game** returns to the start screen, clearing the board, the scores and the capture counts; the chosen mode is kept.
 
 ## 9. Known Limitations
 
-- The computer's strength depends on the device: slower devices get fewer playouts in the same thinking time.
+- The computer's strength depends on the device: slower devices get fewer playouts in the same thinking time (except Beginner, whose 300 playouts fit in its second on most devices).
 - Area scoring counts every stone on the board, so dead stones must be captured before passing.
 - No komi, handicap, or save/load.
 - Clipping to the rectangular board leaves ragged edges with some tiles having only 1 to 3 neighbors.

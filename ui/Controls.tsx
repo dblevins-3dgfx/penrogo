@@ -1,19 +1,21 @@
-// The panel under the scoreboard. Before a game: the mode, the computer's
-// thinking time and Start. During one: the opening tile's type and
+// The panel under the scoreboard. Before a game: the mode, the board size,
+// the computer's level and Start. During one: the opening tile's type and
 // rotation (until the board exists), Place on touch screens, Hint (when
 // hints are on), Undo (when undo is on), Pass (Skip Opening before the
 // board exists) and New Game.
 import { Lightbulb, Play, RotateCcw, RotateCw, SkipForward, Undo2 } from 'lucide-react';
 import { isHumanTurn, undoDepth, type GameAction, type GameState, type Target } from '../game';
-import type { TileType } from '../opening';
-import { THINK_OPTIONS } from '../prefs';
+import { BOARD_SIZES, type BoardSizeId, type TileType } from '../opening';
+import { LEVELS, type LevelId } from '../prefs';
 
 type ControlsProps = {
   game: GameState;
   dispatch: (a: GameAction) => void;
   panel: string; // the skin's panel classes
-  thinkSeconds: number;
-  onThinkSeconds: (s: number) => void;
+  level: LevelId;
+  onLevel: (l: LevelId) => void;
+  boardSizeId: BoardSizeId;
+  onBoardSize: (s: BoardSizeId) => void;
   tileType: TileType;
   onTileType: (t: TileType) => void;
   rotation: number;
@@ -31,7 +33,28 @@ type ControlsProps = {
 const choiceClass = (chosen: boolean, size: string) =>
   `${size} rounded-lg font-semibold ${chosen ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`;
 
-const StartPanel = ({ game, dispatch, thinkSeconds, onThinkSeconds, onStart }: ControlsProps) => (
+// A labeled drop-down of choices
+const Choice = <T extends string>({ label, value, options, onChange }: {
+  label: string; value: T; options: { id: T; text: string }[]; onChange: (v: T) => void;
+}) => (
+  <label className="text-slate-300 text-sm flex items-center gap-2">
+    {label}
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as T)}
+      className="bg-slate-700 text-white rounded-lg px-2 py-2"
+    >
+      {options.map(o => (
+        <option key={o.id} value={o.id}>{o.text}</option>
+      ))}
+    </select>
+  </label>
+);
+
+const SIZE_OPTIONS = BOARD_SIZES.map(s => ({ id: s.id, text: `${s.name} (~${s.tiles} tiles)` }));
+const LEVEL_OPTIONS = LEVELS.map(l => ({ id: l.id, text: l.name }));
+
+const StartPanel = ({ game, dispatch, level, onLevel, boardSizeId, onBoardSize, onStart }: ControlsProps) => (
   <>
     <div className="flex gap-2">
       <button
@@ -47,20 +70,8 @@ const StartPanel = ({ game, dispatch, thinkSeconds, onThinkSeconds, onStart }: C
         vs Computer
       </button>
     </div>
-    {game.mode === 'ai' && (
-      <label className="text-slate-300 text-sm flex items-center gap-2">
-        Computer thinks
-        <select
-          value={thinkSeconds}
-          onChange={(e) => onThinkSeconds(Number(e.target.value))}
-          className="bg-slate-700 text-white rounded-lg px-2 py-2"
-        >
-          {THINK_OPTIONS.map(s => (
-            <option key={s} value={s}>{s} s</option>
-          ))}
-        </select>
-      </label>
-    )}
+    <Choice label="Board" value={boardSizeId} options={SIZE_OPTIONS} onChange={onBoardSize} />
+    {game.mode === 'ai' && <Choice label="Computer" value={level} options={LEVEL_OPTIONS} onChange={onLevel} />}
     <button
       onClick={onStart}
       className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 font-semibold"

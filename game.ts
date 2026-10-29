@@ -6,7 +6,8 @@
 import { buildBoard } from './penrose-board';
 import { groupsInAtari, opponentOf, playMove, positionKey, scoreArea, type AtariGroup } from './go-engine';
 import {
-  BOARD_H, BOARD_W, TILE_SIZE, candidateVertices, isOutsidePlayfield, tileAtPoint, type Candidate
+  DEFAULT_BOARD_SIZE, TILE_SIZE, boardSize, candidateVertices, isOutsidePlayfield, tileAtPoint,
+  type BoardSizeId, type Candidate
 } from './opening';
 
 import type { Player, Point, Score, Stone, Tile, TileType } from './types';
@@ -23,6 +24,7 @@ export type GameEvent =
 
 export type GameState = {
   mode: Mode;
+  size: BoardSizeId; // the board size, chosen when the game starts
   started: boolean;
   tiles: Tile[] | null; // null until the opening builds the board
   stones: Stone[];
@@ -44,7 +46,7 @@ export type Hint = null | { status: 'thinking'; player: Player } | { status: 'sh
 
 export type GameAction =
   | { type: 'setMode'; mode: Mode }
-  | { type: 'start' }
+  | { type: 'start'; size?: BoardSizeId }
   | { type: 'reset' }
   | { type: 'open'; cand: Candidate }
   | { type: 'claim'; id: number }
@@ -65,8 +67,9 @@ export const UNDONE = 'Move taken back.';
 // How long the search may think for a hint
 export const HINT_TIME_MS = 2000;
 
-export const initialGame = (mode: Mode = 'ai'): GameState => ({
+export const initialGame = (mode: Mode = 'ai', size: BoardSizeId = DEFAULT_BOARD_SIZE): GameState => ({
   mode,
+  size,
   started: false,
   tiles: null,
   stones: [],
@@ -99,9 +102,10 @@ const after = (g: GameState, next: Omit<GameState, 'past'>): GameState => ({
 // first stone. Unchanged if the tile would stick out of the board.
 const open = (g: GameState, cand: Candidate): GameState => {
   const verts = candidateVertices(cand);
-  if (g.tiles || isOutsidePlayfield(verts)) return g;
+  const { w, h } = boardSize(g.size);
+  if (g.tiles || isOutsidePlayfield(verts, w, h)) return g;
   const player = g.currentPlayer;
-  const { tiles, opening } = buildBoard(cand.type, verts, BOARD_W, BOARD_H, TILE_SIZE);
+  const { tiles, opening } = buildBoard(cand.type, verts, w, h, TILE_SIZE);
   const stones: Stone[] = Array.from({ length: tiles.length }, () => 0);
   stones[opening] = player;
   return after(g, {
@@ -208,9 +212,9 @@ export const gameReducer = (g: GameState, a: GameAction): GameState => {
     case 'setMode':
       return g.started ? g : { ...g, mode: a.mode };
     case 'start':
-      return { ...initialGame(g.mode), started: true, message: OPENING_HINT };
+      return { ...initialGame(g.mode, a.size ?? g.size), started: true, message: OPENING_HINT };
     case 'reset':
-      return initialGame(g.mode);
+      return initialGame(g.mode, g.size);
     case 'undo':
       return undo(g);
   }
@@ -262,10 +266,10 @@ export const turnText = (g: GameState) => {
   return `${playerName(g.mode, g.currentPlayer)}'s Turn`;
 };
 
-// What a point on the board is over, for the preview and for placing: the
-// opening tile (of the chosen type and rotation, centered on the point) and
-// whether it fits, or the board tile under it and whether claiming it is
-// legal. Null when it isn't a person's turn or the point is off every tile.
+// What a point on the board (in board units: see BOARD_SIZES) is over, for
+// the preview and for placing: the opening tile (of the chosen type and
+// rotation, centered on the point) and whether it fits, or the board tile
+// under it and whether claiming it is legal. Null when it isn't a person's turn or the point is off every tile.
 export type Target =
   | { kind: 'opening'; cand: Candidate; verts: Point[]; legal: boolean }
   | { kind: 'tile'; id: number; verts: Point[]; legal: boolean };
@@ -275,7 +279,8 @@ export const targetAt = (g: GameState, pos: Point | null, type: TileType, rotati
   if (!g.tiles) {
     const cand = { type, x: pos.x, y: pos.y, rotation };
     const verts = candidateVertices(cand);
-    return { kind: 'opening', cand, verts, legal: !isOutsidePlayfield(verts) };
+    const { w, h } = boardSize(g.size);
+    return { kind: 'opening', cand, verts, legal: !isOutsidePlayfield(verts, w, h) };
   }
   const id = tileAtPoint(g.tiles, pos.x, pos.y);
   if (id < 0) return null;

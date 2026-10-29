@@ -1,19 +1,38 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { UNDO_STORAGE_KEY, ATARI_STORAGE_KEY, DEFAULT_THINK_SECONDS, HINTS_STORAGE_KEY, THINK_OPTIONS, formatSwitch, parseSwitch, parseSkinId, parseThinkSeconds } from './prefs';
+import {
+  ATARI_STORAGE_KEY, BOARD_STORAGE_KEY, DEFAULT_LEVEL, HINTS_STORAGE_KEY, LEVELS, LEVEL_STORAGE_KEY, UNDO_STORAGE_KEY,
+  formatSwitch, levelById, parseBoardSize, parseLevel, parseSkinId, parseSwitch
+} from './prefs';
 
-// Spec 6: thinking time 1, 3 (default), 5 or 10 seconds, remembered
-test('the thinking time choices are 1, 3, 5 and 10 seconds, defaulting to 3', () => {
-  assert.deepEqual(THINK_OPTIONS, [1, 3, 5, 10]);
-  assert.equal(DEFAULT_THINK_SECONDS, 3);
+// Spec 6: the computer's level, Medium by default, remembered
+test('the levels are Beginner, Easy, Medium and Strong, getting stronger, Medium by default', () => {
+  assert.deepEqual(LEVELS.map(l => l.name), ['Beginner', 'Easy', 'Medium', 'Strong']);
+  assert.equal(DEFAULT_LEVEL, 'medium');
+  assert.deepEqual(LEVELS.map(l => l.search.timeMs), [1000, 1000, 3000, 10000]);
+  const beginner = levelById('beginner').search;
+  assert.equal(beginner.maxPlayouts, 300, 'Beginner searches only a few hundred playouts');
+  assert.equal(beginner.wander, 0.3, 'and sometimes picks a runner-up move');
+  for (const l of LEVELS.slice(1)) assert.equal(l.search.wander ?? 0, 0, `${l.name} plays its best move`);
 });
 
-test('a saved thinking time is read back; anything else gives the default', () => {
-  for (const s of THINK_OPTIONS) assert.equal(parseThinkSeconds(String(s)), s);
-  assert.equal(parseThinkSeconds(null), 3, 'nothing saved');
-  assert.equal(parseThinkSeconds('7'), 3, 'not a choice');
-  assert.equal(parseThinkSeconds('fast'), 3, 'not a number');
-  assert.equal(parseThinkSeconds(''), 3, 'empty');
+test('a saved level is read back; an old thinking time picks the matching level; else Medium', () => {
+  for (const l of LEVELS) assert.equal(parseLevel(l.id), l.id);
+  assert.equal(parseLevel(null), 'medium', 'nothing saved');
+  assert.equal(parseLevel('grandmaster'), 'medium', 'not a level');
+  assert.equal(parseLevel(null, '1'), 'easy');
+  assert.equal(parseLevel(null, '3'), 'medium');
+  assert.equal(parseLevel(null, '5'), 'medium');
+  assert.equal(parseLevel(null, '10'), 'strong');
+  assert.equal(parseLevel(null, '7'), 'medium', 'not an old choice');
+  assert.equal(parseLevel('beginner', '10'), 'beginner', 'a saved level wins');
+});
+
+// Spec 4: the board size, Full by default, remembered
+test('a saved board size is read back; anything else gives Full', () => {
+  for (const id of ['small', 'medium', 'large', 'full']) assert.equal(parseBoardSize(id), id);
+  assert.equal(parseBoardSize(null), 'full');
+  assert.equal(parseBoardSize('huge'), 'full');
 });
 
 // Spec 7b: the chosen skin is remembered
@@ -34,6 +53,7 @@ test('undo, hints and atari warnings are on unless saved as off', () => {
   assert.equal(parseSwitch(formatSwitch(true)), true, 'on round-trips');
 });
 
-test('undo, hints and atari warnings are saved separately', () => {
-  assert.equal(new Set([UNDO_STORAGE_KEY, ATARI_STORAGE_KEY, HINTS_STORAGE_KEY]).size, 3);
+test('each setting is saved under its own key', () => {
+  const keys = [UNDO_STORAGE_KEY, ATARI_STORAGE_KEY, HINTS_STORAGE_KEY, LEVEL_STORAGE_KEY, BOARD_STORAGE_KEY];
+  assert.equal(new Set(keys).size, keys.length);
 });

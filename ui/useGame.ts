@@ -8,8 +8,9 @@
 // move while a hint is being looked for), so a stale answer is never used.
 import { useEffect, useReducer } from 'react';
 import { HINT_TIME_MS, gameReducer, initialGame, isComputerTurn, type GameState } from '../game';
-import { COMPUTER_OPENING } from '../opening';
+import { boardSize, computerOpening } from '../opening';
 import type { ThinkRequest } from '../ai-worker';
+import type { SearchOptions } from '../go-engine';
 import type { Player } from '../types';
 
 const COMPUTER_OPENING_DELAY_MS = 400;
@@ -19,7 +20,7 @@ type Position = Pick<GameState, 'stones' | 'history' | 'passes'> & { tiles: NonN
 
 // Starts a search for `player` in a worker and calls `onMove` with its
 // answer (a tile, or null to pass). Returns a function that discards it.
-const search = (pos: Position, player: Player, timeMs: number, onMove: (move: number | null) => void) => {
+const search = (pos: Position, player: Player, limits: ThinkRequest['search'], onMove: (move: number | null) => void) => {
   const worker = new Worker(new URL('../ai-worker.ts', import.meta.url), { type: 'module' });
   worker.onmessage = (e) => onMove(e.data.move);
   const request: ThinkRequest = {
@@ -28,15 +29,16 @@ const search = (pos: Position, player: Player, timeMs: number, onMove: (move: nu
     history: [...pos.history],
     player,
     opponentPassed: pos.passes > 0,
-    timeMs
+    search: limits
   };
   worker.postMessage(request);
   return () => worker.terminate();
 };
 
-export const useGame = (thinkSeconds: number) => {
+// `computer` is how the computer searches (its level: see LEVELS in prefs.ts)
+export const useGame = (computer: Omit<SearchOptions, 'rand'>) => {
   const [game, dispatch] = useReducer(gameReducer, undefined, () => initialGame());
-  const { started, gameOver, tiles, stones, history, passes, hint } = game;
+  const { started, gameOver, tiles, stones, history, passes, hint, size } = game;
   const computerTurn = isComputerTurn(game);
 
   useEffect(() => {
@@ -44,17 +46,18 @@ export const useGame = (thinkSeconds: number) => {
 
     dispatch({ type: 'thinking' });
     if (!tiles) {
-      const timer = setTimeout(() => dispatch({ type: 'open', cand: COMPUTER_OPENING }), COMPUTER_OPENING_DELAY_MS);
+      const cand = computerOpening(boardSize(size));
+      const timer = setTimeout(() => dispatch({ type: 'open', cand }), COMPUTER_OPENING_DELAY_MS);
       return () => clearTimeout(timer);
     }
 
-    return search({ tiles, stones, history, passes }, 2, thinkSeconds * 1000,
+    return search({ tiles, stones, history, passes }, 2, computer,
       move => dispatch(move === null ? { type: 'pass' } : { type: 'claim', id: move }));
-  }, [started, gameOver, computerTurn, tiles, stones, history, passes, thinkSeconds]);
+  }, [started, gameOver, computerTurn, tiles, stones, history, passes, size, computer]);
 
   useEffect(() => {
     if (hint?.status !== 'thinking' || !tiles) return;
-    return search({ tiles, stones, history, passes }, hint.player, HINT_TIME_MS, move => dispatch({ type: 'hint', move }));
+    return search({ tiles, stones, history, passes }, hint.player, { timeMs: HINT_TIME_MS }, move => dispatch({ type: 'hint', move }));
   }, [hint, tiles, stones, history, passes]);
 
   return [game, dispatch] as const;

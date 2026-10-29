@@ -13,7 +13,7 @@ const HowToPlay = ({ panel, players, isTouchDevice, onClose }: HowToPlayProps) =
   <Dialog title="How to Play" panel={panel} onClose={onClose}>
     <p className="mb-3">Go, played on a Penrose tiling of kites and darts.</p>
     <ul className="list-disc list-inside space-y-2">
-      <li>Choose 2 Players or vs Computer (the computer plays {players[2].name}), then press Start. Against the computer you can also choose how long it thinks per move: longer thinking makes it stronger</li>
+      <li>Choose 2 Players or vs Computer (the computer plays {players[2].name}), pick a board size (smaller boards make shorter games), then press Start. Against the computer you can also pick its level, from Beginner (weaker on purpose) to Strong</li>
       <li>
         Player 1 places the first tile anywhere, as a kite or dart at any rotation
         {isTouchDevice

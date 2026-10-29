@@ -7,9 +7,24 @@ import type { Point, TileType } from './types';
 export const PHI = (1 + Math.sqrt(5)) / 2;
 export const TILE_SIZE = 60;
 
-// Playfield size (matches the canvas).
+// The canvas's drawing size, and the playfield of a full board.
 export const BOARD_W = 800;
 export const BOARD_H = 600;
+
+// The board sizes: the tiling cut to a w x h region (4:3, in the same units
+// as the tiles), drawn scaled up to fill the canvas. Smaller boards have
+// fewer, larger-looking tiles; the tile counts are typical.
+export type BoardSizeId = 'small' | 'medium' | 'large' | 'full';
+export type BoardSize = { id: BoardSizeId; name: string; tiles: number; w: number; h: number };
+export const BOARD_SIZES: BoardSize[] = [
+  { id: 'small', name: 'Small', tiles: 60, w: 448, h: 336 },
+  { id: 'medium', name: 'Medium', tiles: 100, w: 560, h: 420 },
+  { id: 'large', name: 'Large', tiles: 155, w: 680, h: 510 },
+  { id: 'full', name: 'Full', tiles: 220, w: BOARD_W, h: BOARD_H }
+];
+export const DEFAULT_BOARD_SIZE: BoardSizeId = 'full';
+export const boardSize = (id: BoardSizeId): BoardSize =>
+  BOARD_SIZES.find(s => s.id === id) ?? BOARD_SIZES[BOARD_SIZES.length - 1];
 
 // Rotation of the opening tile, in degrees, turns in steps of 36.
 export const ROTATION_STEP = 36;
@@ -59,15 +74,19 @@ export const candidateVertices = (c: Candidate): Point[] => c.type === 'kite'
   ? kiteVertices(c.x, c.y, c.rotation)
   : dartVertices(c.x, c.y, c.rotation);
 
-// Where the computer opens: a kite at the board center.
-export const COMPUTER_OPENING: Candidate = { type: 'kite', x: BOARD_W / 2, y: BOARD_H / 2, rotation: 0 };
+// Where the computer opens: a kite at the center of a board of the given
+// size (a full board by default).
+export const computerOpening = (s: { w: number; h: number } = boardSize('full')): Candidate =>
+  ({ type: 'kite', x: s.w / 2, y: s.h / 2, rotation: 0 });
+export const COMPUTER_OPENING: Candidate = computerOpening();
 
-// True if any vertex lies outside the playfield (small rounding tolerance).
-export const isOutsidePlayfield = (verts: Point[]): boolean => {
+// True if any vertex lies outside a w x h playfield (a full board by
+// default; small rounding tolerance).
+export const isOutsidePlayfield = (verts: Point[], w = BOARD_W, h = BOARD_H): boolean => {
   const EDGE_TOL = 0.5;
   return verts.some(v =>
-    v.x < -EDGE_TOL || v.x > BOARD_W + EDGE_TOL ||
-    v.y < -EDGE_TOL || v.y > BOARD_H + EDGE_TOL
+    v.x < -EDGE_TOL || v.x > w + EDGE_TOL ||
+    v.y < -EDGE_TOL || v.y > h + EDGE_TOL
   );
 };
 
