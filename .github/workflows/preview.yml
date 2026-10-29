@@ -1,0 +1,44 @@
+# Publishes a preview of every pull request to GitHub Pages, at
+# https://<user>.github.io/penrogo/pr-preview/pr-<number>/, and comments
+# the link on the pull request. Each push to the pull request updates it;
+# closing or merging the pull request removes it.
+#
+# Previews live on the gh-pages branch under pr-preview/, next to the main
+# site (see deploy.yml). Pull requests from forks are skipped: their token
+# can't push to this repository.
+name: Preview pull request
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# One preview deploy at a time per pull request
+concurrency: preview-${{ github.event.number }}
+
+jobs:
+  preview:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        if: github.event.action != 'closed'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        if: github.event.action != 'closed'
+      - run: npm run build
+        if: github.event.action != 'closed'
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/pr-preview/pr-${{ github.event.number }}/
+      - uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: dist
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview
+          qr-code: false

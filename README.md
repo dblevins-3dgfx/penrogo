@@ -25,7 +25,11 @@ Then open http://localhost:5173. The dev server also listens on your local netwo
 
 Every push to `main` publishes the game to GitHub Pages at **https://dblevins-3dgfx.github.io/penrogo/** (see `.github/workflows/deploy.yml`; progress shows under the repository's Actions tab). The game is a static site (the computer opponent runs in the player's browser), so there is no server to run. The build is told where it lives with `BASE_PATH=/penrogo/`; without it, everything is served from the root as usual.
 
-One-time setup, needed before the first deploy: repository **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+Every pull request also gets a preview at `https://dblevins-3dgfx.github.io/penrogo/pr-preview/pr-<number>/` (see `.github/workflows/preview.yml`). A comment on the pull request links to it; each push updates it, and closing or merging the pull request removes it. Pull requests from forks don't get one.
+
+Both deploy to the `gh-pages` branch: the main site at its root, previews under `pr-preview/`. Don't edit that branch by hand.
+
+One-time setup: repository **Settings → Pages → Build and deployment → Source: Deploy from a branch**, branch **gh-pages**, folder **/ (root)**. The `gh-pages` branch appears after the first deploy from `main`.
 
 ## Scripts
 
