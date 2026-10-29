@@ -4,10 +4,10 @@
 // the parent decides what they mean (see targetAt in game.ts).
 import { useEffect, useMemo, useRef } from 'react';
 import { opponentOf, scoreArea } from '../go-engine';
-import { isHumanTurn, type GameEvent, type GameState, type Target } from '../game';
+import { isHumanTurn, type AtariGroup, type GameEvent, type GameState, type Target } from '../game';
 import { BOARD_H, BOARD_W, SWIPE_END_MS, WHEEL_NOTCH, wheelPixels, wheelTurns, type Point } from '../opening';
 import type { Skin } from '../skins';
-import { tracePolygon } from '../skins/canvas-utils';
+import { centroidOf, tracePolygon } from '../skins/canvas-utils';
 import type { Player } from '../skins/types';
 
 // Touch devices have no hover, so the preview follows a finger drag and is
@@ -18,6 +18,7 @@ type BoardCanvasProps = {
   skin: Skin;
   game: GameState;
   target: Target | null;
+  atari: AtariGroup[]; // the groups to warn about (none when the warnings are off)
   onHover: (pos: Point | null) => void;
   onClick: (pos: Point) => void; // a left mouse click
   onRotate: (dir: 1 | -1) => void; // the opening tile, by wheel or right-click; keep it stable (useCallback)
@@ -96,10 +97,37 @@ const drawHint = (ctx: CanvasRenderingContext2D, verts: Point[]) => {
   ctx.restore();
 };
 
-// Draws the board, the last move and the target with the skin's hooks, and
-// the hinted tile on top
+// A group in atari, the same in every skin: each of its tiles outlined in
+// solid red on a white halo, and its last liberty marked with a red ring.
+// Solid, so it is not mistaken for the dashed hint or an illegal preview.
+const drawAtari = (ctx: CanvasRenderingContext2D, tiles: { verts: Point[] }[], g: AtariGroup) => {
+  ctx.save();
+  ctx.lineJoin = 'round';
+  for (const m of g.members) {
+    tracePolygon(ctx, tiles[m].verts);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    ctx.strokeStyle = '#dc2626';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+  const c = centroidOf(tiles[g.liberty].verts);
+  ctx.beginPath();
+  ctx.arc(c.x, c.y, 7, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+  ctx.lineWidth = 5.5;
+  ctx.stroke();
+  ctx.strokeStyle = '#dc2626';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.restore();
+};
+
+// Draws the board, the last move and the target with the skin's hooks, the
+// groups in atari over them, and the hinted tile on top
 const drawBoard = (canvas: HTMLCanvasElement, skin: Skin, game: GameState, target: Target | null,
-  fxDrawsLastMove: boolean, fxDrawsTarget: boolean) => {
+  atari: AtariGroup[], fxDrawsLastMove: boolean, fxDrawsTarget: boolean) => {
   const { tiles, stones, lastMove, gameOver, currentPlayer } = game;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -113,6 +141,7 @@ const drawBoard = (canvas: HTMLCanvasElement, skin: Skin, game: GameState, targe
     });
     // Unless the skin's effects draw (and animate) it on the overlay
     if (lastMove !== null && stones[lastMove] && !fxDrawsLastMove) skin.drawLastMove(ctx, tiles[lastMove].verts, stones[lastMove] as Player);
+    atari.forEach(g => drawAtari(ctx, tiles, g));
   }
 
   if (target) {
@@ -133,7 +162,7 @@ const drawBoard = (canvas: HTMLCanvasElement, skin: Skin, game: GameState, targe
   if (tiles && hint?.status === 'shown' && hint.move !== null) drawHint(ctx, tiles[hint.move].verts);
 };
 
-const BoardCanvas = ({ skin, game, target, onHover, onClick, onRotate }: BoardCanvasProps) => {
+const BoardCanvas = ({ skin, game, target, atari, onHover, onClick, onRotate }: BoardCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const fx = useSkinEffects(skin, game, target, overlayRef);
@@ -145,8 +174,8 @@ const BoardCanvas = ({ skin, game, target, onHover, onClick, onRotate }: BoardCa
   const rotating = started && !tiles; // the opening tile can be turned
 
   useEffect(() => {
-    if (canvasRef.current) drawBoard(canvasRef.current, skin, game, target, fxDrawsLastMove, fxDrawsTarget);
-  }, [game, target, skin, fxDrawsLastMove, fxDrawsTarget]);
+    if (canvasRef.current) drawBoard(canvasRef.current, skin, game, target, atari, fxDrawsLastMove, fxDrawsTarget);
+  }, [game, target, atari, skin, fxDrawsLastMove, fxDrawsTarget]);
 
   // The wheel turns the opening tile (see wheelTurns). Non-passive so
   // preventDefault can stop the page from scrolling.

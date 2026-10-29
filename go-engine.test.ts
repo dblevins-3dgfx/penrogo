@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chooseMctsMove, groupAt, playMove, positionKey, scoreArea } from './go-engine';
+import { chooseMctsMove, groupAt, groupsInAtari, playMove, positionKey, scoreArea } from './go-engine';
 import type { GraphTile, Stone } from './types';
 
 // A w x h square grid as a tile graph; tile (x, y) has id y * w + x.
@@ -69,6 +69,23 @@ test('groupAt finds the connected group and its liberties', () => {
 });
 
 // Spec 5, Suicide
+// Spec 7, Atari warnings: groups down to one liberty
+test('groupsInAtari lists each group with one liberty, and that liberty', () => {
+  const tiles = grid(4, 3);
+  const stones = board(
+    '12..',
+    '1...',
+    '2...');
+  // Player 1's pair at x = 0 has only (1, 1) left; Player 2's tile at (0, 2)
+  // has only (1, 2); Player 2's tile at (1, 0) has two liberties
+  assert.deepEqual(groupsInAtari(tiles, stones), [
+    { player: 1, members: [0, 4], liberty: 5 },
+    { player: 2, members: [8], liberty: 9 }
+  ]);
+  assert.deepEqual(groupsInAtari(tiles, board('....', '.1..', '....')), [], 'a lone stone with four liberties');
+  assert.deepEqual(groupsInAtari(tiles, board('....', '....', '....')), [], 'an empty board');
+});
+
 test('suicide is illegal', () => {
   const tiles = grid(3, 3);
   const stones = board('.1.', '1..', '...');
