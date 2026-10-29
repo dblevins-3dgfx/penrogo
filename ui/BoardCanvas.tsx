@@ -4,7 +4,7 @@
 // the parent decides what they mean (see targetAt in game.ts).
 import { useEffect, useMemo, useRef } from 'react';
 import { opponentOf, scoreArea } from '../go-engine';
-import { isHumanTurn, type GameState, type Target } from '../game';
+import { isHumanTurn, type GameEvent, type GameState, type Target } from '../game';
 import { BOARD_H, BOARD_W, SWIPE_END_MS, WHEEL_NOTCH, wheelPixels, wheelTurns, type Point } from '../opening';
 import type { Skin } from '../skins';
 import type { Player } from '../skins/types';
@@ -19,7 +19,7 @@ type BoardCanvasProps = {
   target: Target | null;
   onHover: (pos: Point | null) => void;
   onClick: (pos: Point) => void; // a left mouse click
-  onRotate: (dir: 1 | -1) => void; // the opening tile, by wheel or right-click
+  onRotate: (dir: 1 | -1) => void; // the opening tile, by wheel or right-click; keep it stable (useCallback)
 };
 
 // The skin's animated effects, if it has any, unless the device asks for
@@ -42,11 +42,13 @@ const useSkinEffects = (skin: Skin, game: GameState, target: Target | null,
     if (!fx || !overlayRef.current) return;
     fx.attach(overlayRef.current);
     return () => fx.detach();
-  }, [fx]);
+  }, [fx, overlayRef]);
 
-  // Only on a new event, so switching skins doesn't replay it
+  // Only on a new event, so switching skins doesn't replay the last one
+  const forwarded = useRef<GameEvent | null>(null);
   useEffect(() => {
-    if (!event) return;
+    if (!event || event === forwarded.current) return;
+    forwarded.current = event;
     if (event.kind === 'opening') {
       fx?.cascade?.(event.tiles, event.verts);
       fx?.place?.(event.verts, event.player);
@@ -54,7 +56,7 @@ const useSkinEffects = (skin: Skin, game: GameState, target: Target | null,
       fx?.place?.(tiles[event.id].verts, event.player);
       if (event.lost.length) fx?.capture?.(event.lost.map(i => tiles[i].verts), opponentOf(event.player), event.player);
     }
-  }, [event]);
+  }, [event, fx, tiles]);
 
   useEffect(() => {
     fx?.setBoard?.(tiles, stones);
@@ -112,13 +114,13 @@ const BoardCanvas = ({ skin, game, target, onHover, onClick, onRotate }: BoardCa
   // Effects that take over drawing the last move / the legal preview
   const fxDrawsLastMove = !!fx?.setLastMove;
   const fxDrawsTarget = !!fx?.setTarget;
-  const { started, tiles, stones, lastMove, gameOver, currentPlayer } = game;
+  const { started, tiles } = game;
   const humanTurn = isHumanTurn(game);
   const rotating = started && !tiles; // the opening tile can be turned
 
   useEffect(() => {
     if (canvasRef.current) drawBoard(canvasRef.current, skin, game, target, fxDrawsLastMove, fxDrawsTarget);
-  }, [tiles, stones, lastMove, gameOver, target, currentPlayer, skin, fxDrawsLastMove, fxDrawsTarget]);
+  }, [game, target, skin, fxDrawsLastMove, fxDrawsTarget]);
 
   // The wheel turns the opening tile (see wheelTurns). Non-passive so
   // preventDefault can stop the page from scrolling.
@@ -143,7 +145,7 @@ const BoardCanvas = ({ skin, game, target, onHover, onClick, onRotate }: BoardCa
       canvas.removeEventListener('wheel', handleWheel);
       clearTimeout(swipe.timer);
     };
-  }, [rotating]);
+  }, [rotating, onRotate]);
 
   // A pointer event's CSS pixel position in the canvas's internal 800 x 600
   // drawing coordinates (the canvas is scaled to fit the window)

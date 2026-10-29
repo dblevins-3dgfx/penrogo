@@ -61,26 +61,30 @@ export const playMove = (tiles, stones, history, id, player) => {
 
 // Area scoring: each player's stones plus the empty regions bordered only
 // by that player's stones. Also returns the owner of every empty tile.
+// The connected empty region containing empty tile `start`, and the
+// players whose stones border it. Marks the region's tiles in `seen`.
+const emptyRegion = (tiles, stones, start, seen) => {
+  const region = [start];
+  seen.add(start);
+  const borders = new Set<1 | 2>();
+  for (let k = 0; k < region.length; k++) {
+    for (const n of tiles[region[k]].neighbors) {
+      if (stones[n] !== 0) borders.add(stones[n]);
+      else if (!seen.has(n)) { seen.add(n); region.push(n); }
+    }
+  }
+  return { region, borders };
+};
+
 export const scoreArea = (tiles, stones) => {
-  const owner = new Array(tiles.length).fill(0);
+  const owner: (0 | 1 | 2)[] = Array.from({ length: tiles.length }, () => 0);
   const score = { 1: 0, 2: 0 };
   stones.forEach(s => { if (s) score[s] += 1; });
 
   const seen = new Set();
   for (let i = 0; i < tiles.length; i++) {
     if (stones[i] !== 0 || seen.has(i)) continue;
-    const region = [i];
-    seen.add(i);
-    const borders = new Set<number>();
-    for (let k = 0; k < region.length; k++) {
-      for (const n of tiles[region[k]].neighbors) {
-        if (stones[n] === 0) {
-          if (!seen.has(n)) { seen.add(n); region.push(n); }
-        } else {
-          borders.add(stones[n]);
-        }
-      }
-    }
+    const { region, borders } = emptyRegion(tiles, stones, i, seen);
     if (borders.size === 1) {
       const p = [...borders][0];
       score[p] += region.length;
@@ -105,7 +109,8 @@ const INFLUENCE_RANGE = 3;
 
 const evaluate = (tiles, stones, player) => {
   const opp = opponentOf(player);
-  const dist = { 1: new Array(tiles.length).fill(Infinity), 2: new Array(tiles.length).fill(Infinity) };
+  const far = () => Array.from({ length: tiles.length }, () => Infinity);
+  const dist = { 1: far(), 2: far() };
   for (const p of [1, 2]) {
     const queue = [];
     stones.forEach((s, i) => { if (s === p) { dist[p][i] = 0; queue.push(i); } });
@@ -280,12 +285,10 @@ class FastBoard {
       for (let j = start[q]; j < start[q + 1]; j++) {
         const r = list[j];
         const c = stones[r];
-        if (c === 0) {
-          if (libMark[r] !== s) {
-            libMark[r] = s;
-            this.lastLib = r;
-            if (++libs >= 2) return 2;
-          }
+        if (c === 0 && libMark[r] !== s) {
+          libMark[r] = s;
+          this.lastLib = r;
+          if (++libs >= 2) return 2;
         } else if (c === color && mark[r] !== s) {
           mark[r] = s;
           stack[size++] = r;
@@ -339,11 +342,9 @@ class FastBoard {
       for (let i = start[q]; i < start[q + 1]; i++) {
         const t = list[i];
         const tc = stones[t];
-        if (tc === 0) {
-          if (lib2[t] !== s) {
-            lib2[t] = s;
-            if (++libs >= 2) return 2;
-          }
+        if (tc === 0 && lib2[t] !== s) {
+          lib2[t] = s;
+          if (++libs >= 2) return 2;
         } else if (tc === c && mark[t] !== s) {
           mark[t] = s;
           stack[size++] = t;
@@ -499,6 +500,19 @@ const selectChild = (node) => {
   return best;
 };
 
+// A playout's result for `player`: 1 for a win, 0.5 for a tie (winner 0).
+const resultFor = (player, winner) => (winner === player ? 1 : winner === 0 ? 0.5 : 0);
+
+// RAVE: credits each child move that its player went on to play later in
+// the same playout (firstColor holds who played each tile first).
+const creditRave = (children, firstColor, winner) => {
+  for (const ch of children) {
+    if (ch.move < 0 || firstColor[ch.move] !== ch.player) continue;
+    ch.an++;
+    ch.aw += resultFor(ch.player, winner);
+  }
+};
+
 // Returns { move: tile id or null to pass, playouts, winRate }.
 export const chooseMctsMove = (tiles, stones, history, player, opponentPassed, options: { timeMs?: number, maxPlayouts?: number } = {}) => {
   const { timeMs = 1500, maxPlayouts = Infinity } = options;
@@ -528,87 +542,90 @@ export const chooseMctsMove = (tiles, stones, history, player, opponentPassed, o
   const firstColor = new Int8Array(n);
   const path = [];
   const rand = Math.random;
-  const t0 = performance.now();
-  let playouts = 0;
 
-  while (playouts < maxPlayouts && performance.now() - t0 < timeMs) {
-    b.copyFrom(rootBoard);
-    path.length = 0;
-    path.push(root);
+  // One iteration's walk: the moves played so far (seqMove and seqColor up
+  // to len), whose turn it is, the last move and the consecutive passes.
+  const walk = { c: player, last: -1, len: 0, passes: 0 };
+
+  // Adds a move (or a pass) to the sequence and hands over the turn
+  const record = (move) => {
+    seqMove[walk.len] = move;
+    seqColor[walk.len++] = walk.c;
+    walk.last = move;
+    walk.c = 3 - walk.c;
+  };
+
+  // Plays a move (or passes), counting consecutive passes
+  const step = (move) => {
+    if (move < 0) walk.passes++;
+    else {
+      walk.passes = 0;
+      b.play(move, walk.c);
+    }
+    record(move);
+  };
+
+  // Walks down the tree by UCT + RAVE to a leaf (or two passes)
+  const descend = () => {
     let node = root;
-    let c = player;
-    let last = -1;
-    let len = 0;
-    let passes = 0;
-
-    // Walk down the tree
     while (node.children) {
       node = selectChild(node);
       path.push(node);
-      if (node.move === PASS) passes++;
-      else {
-        passes = 0;
-        b.play(node.move, c);
-      }
-      seqMove[len] = node.move;
-      seqColor[len++] = c;
-      last = node.move;
-      c = 3 - c;
-      if (passes >= 2) break;
+      step(node.move);
+      if (walk.passes >= 2) break;
     }
+    return node;
+  };
 
-    // Grow the tree by one node
-    if (passes < 2 && node.n > PRIOR_N) {
-      expand(node, b, c, last, null);
-      node = selectChild(node);
-      path.push(node);
-      if (node.move !== PASS) b.play(node.move, c);
-      seqMove[len] = node.move;
-      seqColor[len++] = c;
-      last = node.move;
-      c = 3 - c;
-    }
+  // Grows the tree by one node below a leaf visited often enough. A pass
+  // here is not counted toward ending the playout.
+  const grow = (node) => {
+    if (walk.passes >= 2 || node.n <= PRIOR_N) return;
+    expand(node, b, walk.c, walk.last, null);
+    const child = selectChild(node);
+    path.push(child);
+    if (child.move !== PASS) b.play(child.move, walk.c);
+    record(child.move);
+  };
 
-    // Finish the game with a playout
+  // Finishes the game with a fast playout
+  const playout = () => {
     const limit = seqMove.length - 1;
-    while (passes < 2 && len < limit) {
-      const p = playoutMove(b, c, last, rand);
-      if (p < 0) passes++;
-      else {
-        passes = 0;
-        b.play(p, c);
-      }
-      seqMove[len] = p;
-      seqColor[len++] = c;
-      last = p;
-      c = 3 - c;
-    }
+    while (walk.passes < 2 && walk.len < limit) step(playoutMove(b, walk.c, walk.last, rand));
+  };
 
-    const diff = b.scoreDiff();
-    const winner = diff > 0 ? 1 : diff < 0 ? 2 : 0;
-    playouts++;
-
-    // Update the path (UCT) and sibling moves played later (RAVE)
+  // Updates the path (UCT) and sibling moves played later (RAVE)
+  const backup = (winner) => {
     firstColor.fill(0);
-    for (let d = len - 1; d >= path.length - 1; d--) {
+    for (let d = walk.len - 1; d >= path.length - 1; d--) {
       if (seqMove[d] >= 0) firstColor[seqMove[d]] = seqColor[d];
     }
     for (let d = path.length - 1; d >= 0; d--) {
       const nd = path[d];
       nd.n++;
-      if (winner === nd.player) nd.w++;
-      else if (winner === 0) nd.w += 0.5;
-      if (nd.children) {
-        for (const ch of nd.children) {
-          if (ch.move >= 0 && firstColor[ch.move] === ch.player) {
-            ch.an++;
-            if (winner === ch.player) ch.aw++;
-            else if (winner === 0) ch.aw += 0.5;
-          }
-        }
-      }
+      nd.w += resultFor(nd.player, winner);
+      if (nd.children) creditRave(nd.children, firstColor, winner);
       if (d > 0 && seqMove[d - 1] >= 0) firstColor[seqMove[d - 1]] = seqColor[d - 1];
     }
+  };
+
+  const t0 = performance.now();
+  let playouts = 0;
+  while (playouts < maxPlayouts && performance.now() - t0 < timeMs) {
+    b.copyFrom(rootBoard);
+    path.length = 0;
+    path.push(root);
+    walk.c = player;
+    walk.last = -1;
+    walk.len = 0;
+    walk.passes = 0;
+
+    grow(descend());
+    playout();
+
+    const diff = b.scoreDiff();
+    backup(diff > 0 ? 1 : diff < 0 ? 2 : 0);
+    playouts++;
   }
 
   let best = null;

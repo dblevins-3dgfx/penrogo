@@ -35,6 +35,7 @@ One-time setup, needed before the first deploy: repository **Settings → Pages 
 | `npm run build` | Build for production into `dist/` |
 | `npm run preview` | Serve the production build |
 | `npm run typecheck` | Run the TypeScript checker |
+| `npm run lint` | Run the linter (oxlint, configured in `.oxlintrc.json`) |
 | `npm test` | Run the unit tests (`*.test.ts`) |
 
 ## Layout

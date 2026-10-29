@@ -4,7 +4,7 @@
 // holds what only the screen needs: the opening tile's type and rotation,
 // where the pointer is, and whether How to Play is open. The rules are in
 // game.ts, opening.ts and go-engine.ts.
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { placeAction, targetAt } from './game';
 import { rotateStep, type Point, type TileType } from './opening';
 import { DEFAULT_PLAYERS, skinById } from './skins';
@@ -29,7 +29,8 @@ const PenroseTerritoryGame = () => {
   const players = skin.players || DEFAULT_PLAYERS;
   const panel = skin.chrome.panel;
 
-  const rotate = (dir: 1 | -1) => setRotation(prev => rotateStep(prev, dir));
+  // Stable, so the board's wheel listener isn't re-attached on every render
+  const rotate = useCallback((dir: 1 | -1) => setRotation(prev => rotateStep(prev, dir)), []);
   // Kept while nothing it depends on changes, so the board isn't redrawn
   // and the skin's preview animation isn't restarted on every render
   const target = useMemo(() => targetAt(game, hoveredPos, tileType, rotation), [game, hoveredPos, tileType, rotation]);
@@ -48,7 +49,7 @@ const PenroseTerritoryGame = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [game.started]);
+  }, [game.started, rotate]);
 
   const start = () => {
     setRotation(0);
