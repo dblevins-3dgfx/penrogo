@@ -38,7 +38,7 @@ export const useGame = (thinkSeconds: number) => {
     });
 
     return () => worker.terminate();
-  }, [started, gameOver, computerTurn, tiles, stones]);
+  }, [started, gameOver, computerTurn, tiles, stones, history, passes, thinkSeconds]);
 
   return [game, dispatch] as const;
 };

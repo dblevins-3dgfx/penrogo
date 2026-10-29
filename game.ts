@@ -79,7 +79,7 @@ const open = (g: GameState, cand: Candidate): GameState => {
   if (g.tiles || isOutsidePlayfield(verts)) return g;
   const player = g.currentPlayer;
   const { tiles, opening } = buildBoard(cand.type, verts, BOARD_W, BOARD_H, TILE_SIZE);
-  const stones: Stone[] = new Array(tiles.length).fill(0);
+  const stones: Stone[] = Array.from({ length: tiles.length }, () => 0);
   stones[opening] = player;
   return {
     ...g,
