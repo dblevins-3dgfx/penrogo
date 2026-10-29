@@ -8,7 +8,7 @@ See [penrose-territory-spec.md](penrose-territory-spec.md) for the full rules an
 
 ## On a phone
 
-On an iPhone, open the game in Safari and use **Share → Add to Home Screen**: it then opens full screen from its own icon, like an app. (Its skin and thinking-time choices are kept apart from Safari's.)
+On an iPhone, open the game in Safari and use **Share → Add to Home Screen**: it then opens full screen from its own icon, like an app. (Its settings are kept apart from Safari's.)
 
 ## Running
 
@@ -47,7 +47,7 @@ One-time setup: repository **Settings → Pages → Build and deployment → Sou
 - `penrose-territory.tsx`: the game screen, wiring the hooks to the components; it also holds the opening tile's type and rotation, the pointer position and the How to Play switch
 - `ui/`: the React hooks and components
   - `useGame.ts`: the game reducer as React state, plus the Web Worker searches: the computer's turn (and its opening pause) and hints
-  - `useSettings.ts`: the skin, thinking time, and the hints, atari warning and undo settings, saved in the browser
+  - `useSettings.ts`: the skin, board size, computer level, and the hints, atari warning and undo settings, saved in the browser
   - `Header.tsx`, `Scoreboard.tsx`, `Controls.tsx`: the pieces of the page
   - `Dialog.tsx`, `HowToPlay.tsx`, `Preferences.tsx`: the dialogs (a shared overlay, the rules, and the settings: skin, Hints, Atari warnings and Undo)
   - `SkinPreview.tsx`: a skin's preview card picture, drawn with its own hooks

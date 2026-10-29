@@ -1,17 +1,18 @@
 // The board: the canvas the skin draws on, the overlay canvas for the
-// skin's animations, and pointer, wheel and right-click input. Pointer
-// positions are reported in the canvas's internal 800 x 600 coordinates;
-// the parent decides what they mean (see targetAt in game.ts).
+// skin's animations, and pointer, wheel and right-click input. The canvas is
+// 800 x 600; a smaller board (see BOARD_SIZES) is drawn scaled up to fill
+// it. Pointer positions are reported in board units; the parent decides
+// what they mean (see targetAt in game.ts).
 import { useEffect, useMemo, useRef } from 'react';
 import { opponentOf, scoreArea } from '../go-engine';
 import { isHumanTurn, type AtariGroup, type GameEvent, type GameState, type Target } from '../game';
-import { BOARD_H, BOARD_W, SWIPE_END_MS, WHEEL_NOTCH, wheelPixels, wheelTurns, type Point } from '../opening';
+import { BOARD_H, BOARD_W, SWIPE_END_MS, WHEEL_NOTCH, boardSize, wheelPixels, wheelTurns, type Point } from '../opening';
 import type { Skin } from '../skins';
 import { centroidOf, tracePolygon } from '../skins/canvas-utils';
 import type { Player } from '../skins/types';
 
 // Touch devices have no hover, so the preview follows a finger drag and is
-// lifted above the fingertip so it isn't hidden under it.
+// lifted above the fingertip (in canvas units) so it isn't hidden under it.
 const TOUCH_OFFSET_Y = 60;
 
 type BoardCanvasProps = {
@@ -28,7 +29,7 @@ type BoardCanvasProps = {
 // reduced motion. Null without effects; its event methods are optional
 // (see skins/types.ts). It is told what each move did, the board, the last
 // move and the legal preview.
-const useSkinEffects = (skin: Skin, game: GameState, target: Target | null,
+const useSkinEffects = (skin: Skin, game: GameState, target: Target | null, scale: number,
   overlayRef: React.RefObject<HTMLCanvasElement | null>) => {
   const { tiles, stones, lastMove, currentPlayer, event } = game;
   const reducedMotion = useMemo(
@@ -40,11 +41,14 @@ const useSkinEffects = (skin: Skin, game: GameState, target: Target | null,
     [skin, reducedMotion]
   );
 
+  // The effects draw in board units too: the overlay is scaled like the board
   useEffect(() => {
-    if (!fx || !overlayRef.current) return;
-    fx.attach(overlayRef.current);
+    const overlay = overlayRef.current;
+    if (!fx || !overlay) return;
+    overlay.getContext('2d')?.setTransform(scale, 0, 0, scale, 0, 0);
+    fx.attach(overlay);
     return () => fx.detach();
-  }, [fx, overlayRef]);
+  }, [fx, overlayRef, scale]);
 
   // Only on a new event, so switching skins doesn't replay the last one
   const forwarded = useRef<GameEvent | null>(null);
@@ -131,8 +135,11 @@ const drawBoard = (canvas: HTMLCanvasElement, skin: Skin, game: GameState, targe
   const { tiles, stones, lastMove, gameOver, currentPlayer } = game;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
+  const { w, h } = boardSize(game.size);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  skin.drawBackground(ctx, canvas.width, canvas.height);
+  ctx.setTransform(canvas.width / w, 0, 0, canvas.width / w, 0, 0);
+  skin.drawBackground(ctx, w, h);
 
   if (tiles) {
     const territory = gameOver ? scoreArea(tiles, stones).owner : null;
@@ -153,7 +160,7 @@ const drawBoard = (canvas: HTMLCanvasElement, skin: Skin, game: GameState, targe
       ctx.save();
       ctx.strokeStyle = '#dc2626';
       ctx.lineWidth = 8;
-      ctx.strokeRect(4, 4, BOARD_W - 8, BOARD_H - 8);
+      ctx.strokeRect(4, 4, w - 8, h - 8);
       ctx.restore();
     }
   }
@@ -165,7 +172,9 @@ const drawBoard = (canvas: HTMLCanvasElement, skin: Skin, game: GameState, targe
 const BoardCanvas = ({ skin, game, target, atari, onHover, onClick, onRotate }: BoardCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
-  const fx = useSkinEffects(skin, game, target, overlayRef);
+  // Canvas units per board unit
+  const scale = BOARD_W / boardSize(game.size).w;
+  const fx = useSkinEffects(skin, game, target, scale, overlayRef);
   // Effects that take over drawing the last move / the legal preview
   const fxDrawsLastMove = !!fx?.setLastMove;
   const fxDrawsTarget = !!fx?.setTarget;
@@ -202,15 +211,16 @@ const BoardCanvas = ({ skin, game, target, atari, onHover, onClick, onRotate }: 
     };
   }, [rotating, onRotate]);
 
-  // A pointer event's CSS pixel position in the canvas's internal 800 x 600
-  // drawing coordinates (the canvas is scaled to fit the window)
+  // A pointer event's CSS pixel position in board units: the canvas's
+  // internal 800 x 600 drawing coordinates (the canvas is scaled to fit the
+  // window), divided by the board's scale
   const canvasPoint = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
     const canvas = e.currentTarget;
     const rect = canvas.getBoundingClientRect();
     const touch = e.pointerType === 'touch';
     return {
-      x: (e.clientX - rect.left) * canvas.width / rect.width,
-      y: (e.clientY - rect.top) * canvas.height / rect.height - (touch ? TOUCH_OFFSET_Y : 0)
+      x: (e.clientX - rect.left) * canvas.width / rect.width / scale,
+      y: ((e.clientY - rect.top) * canvas.height / rect.height - (touch ? TOUCH_OFFSET_Y : 0)) / scale
     };
   };
 

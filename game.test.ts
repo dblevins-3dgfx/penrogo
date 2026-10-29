@@ -4,7 +4,7 @@ import {
   HINT_MOVE, HINT_PASS, UNDONE, atariText, ataris, undoDepth, HINT_THINKING, OPENING_HINT, THINKING, gameReducer, initialGame, isComputerTurn, isHumanTurn,
   placeAction, playerName, resultText, shownScore, targetAt, turnText, type GameAction, type GameState
 } from './game';
-import { BOARD_W, COMPUTER_OPENING, candidateVertices } from './opening';
+import { BOARD_W, COMPUTER_OPENING, boardSize, candidateVertices, computerOpening } from './opening';
 import { centroidOf } from './skins/canvas-utils';
 import { positionKey } from './go-engine';
 
@@ -448,4 +448,32 @@ test('undo clears a hint, and New Game forgets the moves', () => {
   const hinted = run(moved, { type: 'askHint' });
   assert.equal(run(hinted, { type: 'undo' }).hint, null);
   assert.equal(undoDepth(run(moved, { type: 'reset' }, { type: 'start' })), 0);
+});
+
+// Spec 4, Board sizes
+test('the board size is chosen at the start and kept by New Game', () => {
+  const g = run(initialGame('two'), { type: 'start', size: 'small' });
+  assert.equal(g.size, 'small');
+  assert.equal(run(g, { type: 'reset' }).size, 'small', 'New Game keeps it');
+  assert.equal(run(g, { type: 'reset' }, { type: 'start' }).size, 'small', 'and the next start without a choice');
+  assert.equal(started().size, 'full', 'Full by default');
+});
+
+test('a small board is built inside its region, around the opening, with fewer tiles', () => {
+  const small = boardSize('small');
+  const g = run(initialGame('two'), { type: 'start', size: 'small' }, { type: 'open', cand: computerOpening(small) });
+  const tiles = tilesOf(g);
+  assert.ok(tiles.length < 80 && tiles.length > 40, `${tiles.length} tiles`);
+  assert.ok(tiles.every(t => t.verts.every(v => v.x < small.w + 0.6 && v.y < small.h + 0.6)));
+  assert.equal(computerOpening(small).x, small.w / 2, 'the computer opens at its center');
+});
+
+test('the opening tile must fit inside the chosen board', () => {
+  const small = boardSize('small');
+  const g = run(initialGame('two'), { type: 'start', size: 'small' });
+  // Fits a full board, but sticks out of a small one
+  const pos = { x: small.w + 20, y: small.h / 2 };
+  assert.equal(targetOf(g, pos, 'kite', 0).legal, false);
+  assert.equal(targetOf(started(), pos, 'kite', 0).legal, true);
+  assert.equal(run(g, { type: 'open', cand: { type: 'kite', ...pos, rotation: 0 } }).tiles, null, 'not placed');
 });

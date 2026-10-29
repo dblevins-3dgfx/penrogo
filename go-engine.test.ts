@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chooseMctsMove, groupAt, groupsInAtari, playMove, positionKey, scoreArea } from './go-engine';
+import { WANDER_CHOICES, chooseMctsMove, groupAt, groupsInAtari, pickMove, playMove, positionKey, scoreArea } from './go-engine';
 import type { GraphTile, Stone } from './types';
 
 // A w x h square grid as a tile graph; tile (x, y) has id y * w + x.
@@ -182,4 +182,32 @@ test('the computer takes a self-atari that captures', () => {
   const stones = board('.12.');
   const r = chooseMctsMove(tiles, stones, new Set([positionKey(stones)]), 2, false, { maxPlayouts: 200 });
   assert.equal(r.move, 0);
+});
+
+// Spec 6, Levels: Beginner sometimes plays a runner-up move
+// A rand that returns the given numbers in turn
+const seq = (...xs: number[]) => () => xs.shift() ?? 0;
+const root = [{ move: 5, n: 10 }, { move: 7, n: 40 }, { move: 2, n: 30 }, { move: 9, n: 20 }, { move: 4, n: 5 }];
+
+test('the move played is the most visited, unless the search wanders', () => {
+  assert.equal(pickMove(root, 0, seq(0, 0)).move, 7, 'no wandering');
+  assert.equal(pickMove(root, 0.3, seq(0.5, 0)).move, 7, 'not this time (0.5 >= 0.3)');
+});
+
+test('a wandering search picks one of the next most visited moves', () => {
+  assert.equal(WANDER_CHOICES, 3);
+  assert.equal(pickMove(root, 0.3, seq(0.1, 0)).move, 2, 'the runner-up');
+  assert.equal(pickMove(root, 0.3, seq(0.1, 0.5)).move, 9, 'the second runner-up');
+  assert.equal(pickMove(root, 0.3, seq(0.1, 0.99)).move, 5, 'the third runner-up, never further down');
+  assert.equal(pickMove(root.slice(0, 2), 1, seq(0, 0.99)).move, 5, 'only one other move');
+  assert.equal(pickMove([{ move: 3, n: 9 }], 1, seq(0, 0)).move, 3, 'no other move');
+  assert.equal(pickMove([{ move: -1, n: 9 }, { move: 3, n: 1 }], 1, seq(0, 0)).move, -1, 'a pass stays a pass');
+});
+
+test('a wandering computer still never fills its own eye or plays a self-atari', () => {
+  const opts = { maxPlayouts: 100, wander: 1, rand: () => 0 };
+  const eyes = board('.2.', '2.2', '.2.');
+  assert.equal(chooseMctsMove(grid(3, 3), eyes, new Set([positionKey(eyes)]), 2, false, opts).move, null);
+  const capture = board('.12.');
+  assert.equal(chooseMctsMove(grid(4, 1), capture, new Set([positionKey(capture)]), 2, false, opts).move, 0);
 });

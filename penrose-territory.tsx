@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { atariText, ataris, placeAction, targetAt } from './game';
 import { rotateStep, type Point, type TileType } from './opening';
 import { DEFAULT_PLAYERS, skinById } from './skins';
+import { levelById } from './prefs';
 import { useGame } from './ui/useGame';
 import { useSettings } from './ui/useSettings';
 import Header from './ui/Header';
@@ -20,8 +21,10 @@ import Preferences from './ui/Preferences';
 const isTouchDevice = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
 
 const PenroseTerritoryGame = () => {
-  const { skinId, setSkinId, thinkSeconds, setThinkSeconds, hintsOn, setHintsOn, atariOn, setAtariOn, undoOn, setUndoOn } = useSettings();
-  const [game, dispatch] = useGame(thinkSeconds);
+  const {
+    skinId, setSkinId, level, setLevel, boardSizeId, setBoardSize, hintsOn, setHintsOn, atariOn, setAtariOn, undoOn, setUndoOn
+  } = useSettings();
+  const [game, dispatch] = useGame(levelById(level).search);
   const [tileType, setTileType] = useState<TileType>('kite');
   const [rotation, setRotation] = useState(0);
   const [hoveredPos, setHoveredPos] = useState<Point | null>(null);
@@ -62,7 +65,7 @@ const PenroseTerritoryGame = () => {
 
   const start = () => {
     setRotation(0);
-    dispatch({ type: 'start' });
+    dispatch({ type: 'start', size: boardSizeId });
   };
 
   const newGame = () => {
@@ -94,8 +97,10 @@ const PenroseTerritoryGame = () => {
             game={game}
             dispatch={dispatch}
             panel={panel}
-            thinkSeconds={thinkSeconds}
-            onThinkSeconds={setThinkSeconds}
+            level={level}
+            onLevel={setLevel}
+            boardSizeId={boardSizeId}
+            onBoardSize={setBoardSize}
             tileType={tileType}
             onTileType={setTileType}
             rotation={rotation}

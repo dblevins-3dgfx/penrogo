@@ -1,13 +1,13 @@
-// The settings remembered in this browser: the skin, the computer's
-// thinking time, whether hints and undo are available and whether atari
-// warnings are shown. What a saved value means
-// is decided in prefs.ts.
+// The settings remembered in this browser: the skin, the computer's level,
+// the board size, whether hints and undo are available and whether atari
+// warnings are shown. What a saved value means is decided in prefs.ts.
 import { useState } from 'react';
 import { SKINS, DEFAULT_SKIN } from '../skins';
 import {
-  ATARI_STORAGE_KEY, HINTS_STORAGE_KEY, SKIN_STORAGE_KEY, THINK_STORAGE_KEY, UNDO_STORAGE_KEY,
-  formatSwitch, parseSkinId, parseSwitch, parseThinkSeconds
+  ATARI_STORAGE_KEY, BOARD_STORAGE_KEY, HINTS_STORAGE_KEY, LEVEL_STORAGE_KEY, OLD_THINK_STORAGE_KEY, SKIN_STORAGE_KEY,
+  UNDO_STORAGE_KEY, formatSwitch, parseBoardSize, parseLevel, parseSkinId, parseSwitch, type LevelId
 } from '../prefs';
+import type { BoardSizeId } from '../opening';
 
 const read = (key: string): string | null => {
   try {
@@ -28,7 +28,8 @@ const write = (key: string, value: string) => {
 export const useSettings = () => {
   const [skinId, setSkinIdState] = useState(() =>
     parseSkinId(read(SKIN_STORAGE_KEY), SKINS.map(s => s.id), DEFAULT_SKIN));
-  const [thinkSeconds, setThinkSecondsState] = useState(() => parseThinkSeconds(read(THINK_STORAGE_KEY)));
+  const [level, setLevelState] = useState(() => parseLevel(read(LEVEL_STORAGE_KEY), read(OLD_THINK_STORAGE_KEY)));
+  const [boardSizeId, setBoardSizeState] = useState(() => parseBoardSize(read(BOARD_STORAGE_KEY)));
   const [hintsOn, setHintsOnState] = useState(() => parseSwitch(read(HINTS_STORAGE_KEY)));
   const [atariOn, setAtariOnState] = useState(() => parseSwitch(read(ATARI_STORAGE_KEY)));
   const [undoOn, setUndoOnState] = useState(() => parseSwitch(read(UNDO_STORAGE_KEY)));
@@ -37,9 +38,13 @@ export const useSettings = () => {
     setSkinIdState(id);
     write(SKIN_STORAGE_KEY, id);
   };
-  const setThinkSeconds = (s: number) => {
-    setThinkSecondsState(s);
-    write(THINK_STORAGE_KEY, String(s));
+  const setLevel = (l: LevelId) => {
+    setLevelState(l);
+    write(LEVEL_STORAGE_KEY, l);
+  };
+  const setBoardSize = (s: BoardSizeId) => {
+    setBoardSizeState(s);
+    write(BOARD_STORAGE_KEY, s);
   };
 
   const setHintsOn = (on: boolean) => {
@@ -56,6 +61,6 @@ export const useSettings = () => {
   };
 
   return {
-    skinId, setSkinId, thinkSeconds, setThinkSeconds, hintsOn, setHintsOn, atariOn, setAtariOn, undoOn, setUndoOn
+    skinId, setSkinId, level, setLevel, boardSizeId, setBoardSize, hintsOn, setHintsOn, atariOn, setAtariOn, undoOn, setUndoOn
   };
 };

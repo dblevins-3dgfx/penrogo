@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildBoard, generatePatch } from './penrose-board';
+import { BOARD_SIZES, computerOpening, candidateVertices } from './opening';
 import type { Point, Tile } from './types';
 
 const PHI = (1 + Math.sqrt(5)) / 2;
@@ -113,4 +114,22 @@ test('interior tiles have exactly four neighbors', () => {
     assert.ok(interior.length > 100);
     for (const t of interior) assert.equal(t.neighbors.length, 4, `tile ${t.id}`);
   }
+});
+
+// Spec 4, Board sizes: smaller regions of the same tiling, about 60, 100, 155 and 220 tiles
+test('each board size cuts the tiling to its region, with about its number of tiles', () => {
+  for (const size of BOARD_SIZES) {
+    assert.ok(near(size.w / size.h, 4 / 3), `${size.name} is 4:3`);
+    for (const [fx, fy] of [[0.5, 0.5], [0.25, 0.3], [0.75, 0.7]]) {
+      const cand = { ...computerOpening(size), x: size.w * fx, y: size.h * fy };
+      const { tiles } = buildBoard('kite', candidateVertices(cand), size.w, size.h, L);
+      assert.ok(Math.abs(tiles.length - size.tiles) <= size.tiles * 0.15,
+        `${size.name}: ${tiles.length} tiles, about ${size.tiles}`);
+      for (const t of tiles) {
+        for (const v of t.verts) assert.ok(v.x > -0.6 && v.x < size.w + 0.6 && v.y > -0.6 && v.y < size.h + 0.6);
+      }
+    }
+  }
+  assert.deepEqual(BOARD_SIZES.map(s => s.name), ['Small', 'Medium', 'Large', 'Full']);
+  assert.deepEqual(BOARD_SIZES.at(-1), { id: 'full', name: 'Full', tiles: 220, w: 800, h: 600 });
 });

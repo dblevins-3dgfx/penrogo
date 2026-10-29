@@ -466,12 +466,30 @@ const creditRave = (children: Node[], firstColor: Int8Array, winner: number) => 
   }
 };
 
+// How many runner-up moves a wandering search picks from (see pickMove)
+export const WANDER_CHOICES = 3;
+
+// The root move to play: the most visited, or, with chance `wander` (a
+// weaker player on purpose), one of the next WANDER_CHOICES most visited
+// moves at random. A pass (move -1) is never swapped for a move.
+export const pickMove = <T extends { move: number; n: number }>(children: T[], wander: number, rand: () => number): T => {
+  const ranked = [...children].sort((a, b) => b.n - a.n);
+  const best = ranked[0];
+  if (best.move === PASS || ranked.length < 2 || wander <= 0 || rand() >= wander) return best;
+  return ranked[1 + Math.floor(rand() * Math.min(WANDER_CHOICES, ranked.length - 1))];
+};
+
+// The search's limits: how long it may think, how many playouts it may run,
+// and the chance it picks a runner-up move instead of the best (see
+// pickMove; `rand` chooses, Math.random by default).
+export type SearchOptions = { timeMs?: number; maxPlayouts?: number; wander?: number; rand?: () => number };
+
 // Returns { move: tile id or null to pass, playouts, winRate }.
 export const chooseMctsMove = (
   tiles: GraphTile[], stones: Stone[], history: Set<string>, player: Player, opponentPassed: boolean,
-  options: { timeMs?: number, maxPlayouts?: number } = {}
+  options: SearchOptions = {}
 ): { move: number | null; playouts: number; winRate: number } => {
-  const { timeMs = 1500, maxPlayouts = Infinity } = options;
+  const { timeMs = 1500, maxPlayouts = Infinity, wander = 0, rand: choose = Math.random } = options;
 
   if (opponentPassed) {
     const { score } = scoreArea(tiles, stones);
@@ -584,11 +602,7 @@ export const chooseMctsMove = (
     playouts++;
   }
 
-  const children = root.children as Node[];
-  let best = children[0];
-  for (const ch of children) {
-    if (ch.n > best.n) best = ch;
-  }
+  const best = pickMove(root.children as Node[], wander, choose);
   return {
     move: best.move === PASS ? null : best.move,
     playouts,
