@@ -1,18 +1,42 @@
-// The game as React state: the reducer from game.ts, plus the computer's
-// turn. When it is the computer's move it opens the board (after a short
-// pause) or searches for a move in a Web Worker (go-engine's Monte Carlo
-// player) and plays it, or passes. The worker is discarded if the turn is
-// abandoned (e.g. New Game), so a stale answer can never be played.
+// The game as React state: the reducer from game.ts, plus the two searches
+// that run in a Web Worker (go-engine's Monte Carlo player):
+// - the computer's turn: it opens the board (after a short pause) or
+//   searches for a move and plays it, or passes;
+// - a hint: when one is asked for, the search looks for the best move for
+//   the player to move and the reducer shows it.
+// A search is discarded if the position changes first (e.g. New Game, or a
+// move while a hint is being looked for), so a stale answer is never used.
 import { useEffect, useReducer } from 'react';
-import { gameReducer, initialGame, isComputerTurn } from '../game';
+import { HINT_TIME_MS, gameReducer, initialGame, isComputerTurn, type GameState } from '../game';
 import { COMPUTER_OPENING } from '../opening';
 import type { ThinkRequest } from '../ai-worker';
+import type { Player } from '../types';
 
 const COMPUTER_OPENING_DELAY_MS = 400;
 
+// The part of the game a search needs
+type Position = Pick<GameState, 'stones' | 'history' | 'passes'> & { tiles: NonNullable<GameState['tiles']> };
+
+// Starts a search for `player` in a worker and calls `onMove` with its
+// answer (a tile, or null to pass). Returns a function that discards it.
+const search = (pos: Position, player: Player, timeMs: number, onMove: (move: number | null) => void) => {
+  const worker = new Worker(new URL('../ai-worker.ts', import.meta.url), { type: 'module' });
+  worker.onmessage = (e) => onMove(e.data.move);
+  const request: ThinkRequest = {
+    neighbors: pos.tiles.map(t => t.neighbors),
+    stones: pos.stones,
+    history: [...pos.history],
+    player,
+    opponentPassed: pos.passes > 0,
+    timeMs
+  };
+  worker.postMessage(request);
+  return () => worker.terminate();
+};
+
 export const useGame = (thinkSeconds: number) => {
   const [game, dispatch] = useReducer(gameReducer, undefined, () => initialGame());
-  const { started, gameOver, tiles, stones, history, passes } = game;
+  const { started, gameOver, tiles, stones, history, passes, hint } = game;
   const computerTurn = isComputerTurn(game);
 
   useEffect(() => {
@@ -24,23 +48,14 @@ export const useGame = (thinkSeconds: number) => {
       return () => clearTimeout(timer);
     }
 
-    const worker = new Worker(new URL('../ai-worker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = (e) => {
-      const { move } = e.data;
-      dispatch(move === null ? { type: 'pass' } : { type: 'claim', id: move });
-    };
-    const request: ThinkRequest = {
-      neighbors: tiles.map(t => t.neighbors),
-      stones,
-      history: [...history],
-      player: 2,
-      opponentPassed: passes > 0,
-      timeMs: thinkSeconds * 1000
-    };
-    worker.postMessage(request);
-
-    return () => worker.terminate();
+    return search({ tiles, stones, history, passes }, 2, thinkSeconds * 1000,
+      move => dispatch(move === null ? { type: 'pass' } : { type: 'claim', id: move }));
   }, [started, gameOver, computerTurn, tiles, stones, history, passes, thinkSeconds]);
+
+  useEffect(() => {
+    if (hint?.status !== 'thinking' || !tiles) return;
+    return search({ tiles, stones, history, passes }, hint.player, HINT_TIME_MS, move => dispatch({ type: 'hint', move }));
+  }, [hint, tiles, stones, history, passes]);
 
   return [game, dispatch] as const;
 };

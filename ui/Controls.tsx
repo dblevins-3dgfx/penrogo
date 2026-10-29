@@ -1,8 +1,8 @@
 // The panel under the scoreboard. Before a game: the mode, the computer's
 // thinking time and Start. During one: the opening tile's type and
-// rotation (until the board exists), Place on touch screens, Pass (Skip
-// Opening before the board exists) and New Game.
-import { Play, RotateCcw, RotateCw, SkipForward } from 'lucide-react';
+// rotation (until the board exists), Place on touch screens, Hint (when
+// hints are on), Pass (Skip Opening before the board exists) and New Game.
+import { Lightbulb, Play, RotateCcw, RotateCw, SkipForward } from 'lucide-react';
 import { isHumanTurn, type GameAction, type GameState, type Target } from '../game';
 import type { TileType } from '../opening';
 import { THINK_OPTIONS } from '../prefs';
@@ -20,6 +20,7 @@ type ControlsProps = {
   isTouchDevice: boolean;
   target: Target | null;
   onPlace: () => void;
+  hintsOn: boolean;
   onStart: () => void;
   onNewGame: () => void;
 };
@@ -109,9 +110,10 @@ const OpeningControls = ({ tileType, onTileType, rotation, onRotate, isTouchDevi
 );
 
 const PlayControls = (props: ControlsProps) => {
-  const { game, dispatch, isTouchDevice, target, onPlace, onNewGame } = props;
+  const { game, dispatch, isTouchDevice, target, onPlace, hintsOn, onNewGame } = props;
   const humanTurn = isHumanTurn(game);
   const canPlace = !!target && target.legal;
+  const canHint = humanTurn && game.hint?.status !== 'thinking';
   return (
     <>
       {!game.tiles && <OpeningControls {...props} />}
@@ -125,6 +127,19 @@ const PlayControls = (props: ControlsProps) => {
           }`}
         >
           Place
+        </button>
+      )}
+
+      {hintsOn && game.tiles && !game.gameOver && (
+        <button
+          onClick={() => dispatch({ type: 'askHint' })}
+          disabled={!canHint}
+          className={`bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 ${
+            canHint ? '' : 'opacity-50'
+          }`}
+        >
+          <Lightbulb size={20} />
+          Hint
         </button>
       )}
 

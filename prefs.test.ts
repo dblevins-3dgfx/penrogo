@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_THINK_SECONDS, THINK_OPTIONS, parseSkinId, parseThinkSeconds } from './prefs';
+import { DEFAULT_THINK_SECONDS, THINK_OPTIONS, formatHints, parseHints, parseSkinId, parseThinkSeconds } from './prefs';
 
 // Spec 6: thinking time 1, 3 (default), 5 or 10 seconds, remembered
 test('the thinking time choices are 1, 3, 5 and 10 seconds, defaulting to 3', () => {
@@ -22,4 +22,14 @@ test('a saved skin is read back if it still exists; otherwise the fallback', () 
   assert.equal(parseSkinId('dazzle', ids, 'plain'), 'dazzle');
   assert.equal(parseSkinId(null, ids, 'plain'), 'plain', 'nothing saved');
   assert.equal(parseSkinId('retired-skin', ids, 'plain'), 'plain', 'a skin since removed');
+});
+
+// Spec 6, Hints: available unless turned off, remembered
+test('hints are on unless saved as off', () => {
+  assert.equal(parseHints(null), true, 'nothing saved: on for new players');
+  assert.equal(parseHints('on'), true);
+  assert.equal(parseHints('off'), false);
+  assert.equal(parseHints('garbage'), true);
+  assert.equal(parseHints(formatHints(false)), false, 'off round-trips');
+  assert.equal(parseHints(formatHints(true)), true, 'on round-trips');
 });

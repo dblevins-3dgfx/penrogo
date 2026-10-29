@@ -7,6 +7,7 @@ import { opponentOf, scoreArea } from '../go-engine';
 import { isHumanTurn, type GameEvent, type GameState, type Target } from '../game';
 import { BOARD_H, BOARD_W, SWIPE_END_MS, WHEEL_NOTCH, wheelPixels, wheelTurns, type Point } from '../opening';
 import type { Skin } from '../skins';
+import { tracePolygon } from '../skins/canvas-utils';
 import type { Player } from '../skins/types';
 
 // Touch devices have no hover, so the preview follows a finger drag and is
@@ -75,7 +76,28 @@ const useSkinEffects = (skin: Skin, game: GameState, target: Target | null,
   return fx;
 };
 
-// Draws the board, the last move and the target with the skin's hooks
+// The tile a hint suggests, the same in every skin: an amber tint and a
+// dashed amber outline on a white halo. Dashed, so it is not mistaken for
+// a skin's last-move marker, and haloed, so it shows on dark and light
+// boards alike.
+const drawHint = (ctx: CanvasRenderingContext2D, verts: Point[]) => {
+  ctx.save();
+  tracePolygon(ctx, verts);
+  ctx.fillStyle = 'rgba(251, 191, 36, 0.35)';
+  ctx.fill();
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+  ctx.lineWidth = 6;
+  ctx.stroke();
+  ctx.strokeStyle = '#d97706';
+  ctx.lineWidth = 3.5;
+  ctx.setLineDash([7, 5]);
+  ctx.stroke();
+  ctx.restore();
+};
+
+// Draws the board, the last move and the target with the skin's hooks, and
+// the hinted tile on top
 const drawBoard = (canvas: HTMLCanvasElement, skin: Skin, game: GameState, target: Target | null,
   fxDrawsLastMove: boolean, fxDrawsTarget: boolean) => {
   const { tiles, stones, lastMove, gameOver, currentPlayer } = game;
@@ -106,6 +128,9 @@ const drawBoard = (canvas: HTMLCanvasElement, skin: Skin, game: GameState, targe
       ctx.restore();
     }
   }
+
+  const { hint } = game;
+  if (tiles && hint?.status === 'shown' && hint.move !== null) drawHint(ctx, tiles[hint.move].verts);
 };
 
 const BoardCanvas = ({ skin, game, target, onHover, onClick, onRotate }: BoardCanvasProps) => {

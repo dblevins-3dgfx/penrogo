@@ -42,9 +42,10 @@ One-time setup, needed before the first deploy: repository **Settings → Pages 
 
 - `penrose-territory.tsx`: the game screen, wiring the hooks to the components; it also holds the opening tile's type and rotation, the pointer position and the How to Play switch
 - `ui/`: the React hooks and components
-  - `useGame.ts`: the game reducer as React state, plus the computer's turn (the opening pause and the Web Worker search)
-  - `useSettings.ts`: the skin and thinking time, saved in the browser
-  - `Header.tsx`, `Scoreboard.tsx`, `Controls.tsx`, `HowToPlay.tsx`: the pieces of the page
+  - `useGame.ts`: the game reducer as React state, plus the Web Worker searches: the computer's turn (and its opening pause) and hints
+  - `useSettings.ts`: the skin, thinking time and hints setting, saved in the browser
+  - `Header.tsx`, `Scoreboard.tsx`, `Controls.tsx`: the pieces of the page
+  - `Dialog.tsx`, `HowToPlay.tsx`, `Preferences.tsx`: the dialogs (a shared overlay, the rules, and the settings such as Hints)
   - `BoardCanvas.tsx`: the board canvas and the skin's effects overlay, drawing and pointer, wheel and right-click input
 - `prefs.ts`: the saved settings' keys, choices and how a saved value is read back
 - `game.ts`: the game's state and moves as a pure reducer (opening, claiming, passing, the end), plus the status line, the scoreboard and what the pointer is over

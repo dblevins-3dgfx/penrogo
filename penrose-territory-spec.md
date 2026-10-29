@@ -17,7 +17,7 @@ This replaces the original free-placement game (kept on the `original-game` bran
 | Rendering | HTML5 Canvas 2D, 800 x 600 internal resolution, scaled to the largest 4:3 size that fits the window |
 | Styling | Tailwind CSS v4 utility classes |
 | Icons | lucide-react (`RotateCw`, `RotateCcw`, `Play`, `SkipForward`, `CircleHelp`, `X`) |
-| Persistence | The chosen skin and the computer's thinking time are kept in the browser's localStorage; the game itself is in memory only |
+| Persistence | The chosen skin, the computer's thinking time and whether hints are on are kept in the browser's localStorage; the game itself is in memory only |
 | Home screen | Installable as a home-screen web app (on an iPhone: Safari, Share, Add to Home Screen). `public/manifest.webmanifest` names it Penrogo and has it open full screen (`standalone`), with the icons `icon-192.png` and `icon-512.png` (the 192 also serves as the browser tab icon); `index.html` adds Apple's tags (`apple-touch-icon.png` at 180 x 180, full-screen capable, the title, a translucent status bar with white text over the dark page) and a dark slate theme color. The icon is drawn in the Go Classic skin, with its own drawing code: a sun of five kites on the kaya board, holding two slate (black) and two clamshell (white) stones and one empty point, with Go's ring marker on a black stone as the last move. Opened from the home screen, it keeps its own storage, separate from Safari's, so its skin and thinking time start at their defaults. It still needs the network to start (no offline play yet) |
 | Touch | The page reaches under the notch, rounded corners and home bar (`viewport-fit=cover`), and the page and the How to Play overlay pad themselves back in by the safe-area insets (`.safe-area`), so nothing sits under them. Double-tap zoom, text selection, the long-press callout and the tap highlight are turned off (`src/index.css`) |
 
@@ -55,6 +55,12 @@ Plays Player 2 in vs Computer mode, using Monte Carlo tree search (`go-engine.ts
 - **Speed.** A board of typed arrays with liberty scans that stop as soon as the answer is known: about 1,000 playouts per second on a Raspberry Pi 5.
 - **Passing.** It passes when it has no move that is not an own-eye fill, or when the human has just passed and it is ahead by area score.
 
+### Hints
+
+The same search can suggest a move to a person. **Hint** (in the controls, shown once the board exists, when hints are on) asks it for the best move for the player to move, searching for 2 seconds in the Web Worker. While it looks, the status line says "Looking for a good move…" and Hint is disabled; it is also disabled on the computer's turn. The suggestion is then highlighted on the board ("Hint: the highlighted tile is a good move."), or, if the search would pass (it has no good move, or the other player just passed and the player to move is ahead), the status line says "Hint: passing is a good choice here." The next move, a pass, the end of the game or New Game clears the hint; an illegal click does not. If a move is played while a hint is still being looked for, the answer is dropped. Hints are unlimited and cost nothing.
+
+Hints are on by default, and can be turned off in **Preferences** (see section 8); the choice is remembered in the browser. Turning them off hides the button and clears any hint shown or being looked for.
+
 ## 7. Visual Feedback
 
 | Element | Behavior |
@@ -65,7 +71,8 @@ Plays Player 2 in vs Computer mode, using Monte Carlo tree search (`go-engine.ts
 | Opening preview | The tile follows the pointer; a red border surrounds the board while it would stick out |
 | Last move | Glowing gold outline and a gold star |
 | Game end | Surrounded empty regions tinted in their owner's color |
-| Status line | Captures, passes, illegal-move reasons, and the final result |
+| Hint | The suggested tile has an amber tint and a dashed amber outline on a white halo, drawn over the board the same way in every skin (dashed, so it is not mistaken for a skin's last-move marker) |
+| Status line | Captures, passes, illegal-move reasons, hints, and the final result |
 
 ## 7b. Skins (`skins/`)
 
@@ -94,7 +101,7 @@ The look is chosen from a picker in the header, at any time (even mid-game); it 
 
 ## 8. Controls and Layout
 
-Same as `main`: mouse click to place; the scroll wheel, right-click (Shift for the other way) or Left/Right arrows rotate the opening tile on desktop; on touch devices the preview follows a finger drag (lifted 60 canvas units above it), rotate buttons are shown, and **Place** confirms. The page fills the visible window without scrolling, and the rules are on a **How to Play** overlay. In portrait the header, scoreboard and controls are stacked above the board, which scales to the largest 4:3 size that fits below them. In landscape (the window wider than tall) the board is on the left at the full height, narrowed if that would leave less than 18rem beside it, and the header, scoreboard and controls are in a panel on the right that takes the remaining width up to 28rem; the scoreboard puts whose turn it is on top, with the two scores below. On a phone held sideways (landscape and under 30rem tall) the panel is compact: How to Play shows only its icon, and the scores and buttons are smaller so the panel fits without scrolling. Rotation controls appear only during the opening. **New Game** returns to the start screen, clearing the board, the scores and the capture counts; the chosen mode (2 Players or vs Computer) is kept.
+Same as `main`: mouse click to place; the scroll wheel, right-click (Shift for the other way) or Left/Right arrows rotate the opening tile on desktop; on touch devices the preview follows a finger drag (lifted 60 canvas units above it), rotate buttons are shown, and **Place** confirms. The page fills the visible window without scrolling. The header has the skin picker, a gear button for the **Preferences** dialog (the Hints switch), and **How to Play** (the rules); both are dialogs over the page that Escape, the X or a click outside closes. How to Play shows only its icon on narrow screens and in the landscape side panel. In portrait the header, scoreboard and controls are stacked above the board, which scales to the largest 4:3 size that fits below them. In landscape (the window wider than tall) the board is on the left at the full height, narrowed if that would leave less than 18rem beside it, and the header, scoreboard and controls are in a panel on the right that takes the remaining width up to 28rem; the scoreboard puts whose turn it is on top, with the two scores below. On a phone held sideways (landscape and under 30rem tall) the panel is compact: the palette icon is hidden and the skin picker, scores and buttons are smaller, so the panel fits without scrolling. Rotation controls appear only during the opening. **New Game** returns to the start screen, clearing the board, the scores and the capture counts; the chosen mode (2 Players or vs Computer) is kept.
 
 ## 9. Known Limitations
 

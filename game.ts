@@ -34,7 +34,12 @@ export type GameState = {
   gameOver: Score | null; // final area scores
   message: string; // the status line under the turn
   event: GameEvent | null;
+  hint: Hint;
 };
+
+// A hint for the player to move: being looked for, or found (a tile, or
+// null to suggest passing). Cleared by the next move.
+export type Hint = null | { status: 'thinking'; player: Player } | { status: 'shown'; move: number | null };
 
 export type GameAction =
   | { type: 'setMode'; mode: Mode }
@@ -43,10 +48,19 @@ export type GameAction =
   | { type: 'open'; cand: Candidate }
   | { type: 'claim'; id: number }
   | { type: 'pass' }
-  | { type: 'thinking' };
+  | { type: 'thinking' }
+  | { type: 'askHint' }
+  | { type: 'hint'; move: number | null }
+  | { type: 'clearHint' };
 
 export const OPENING_HINT = 'Place the first tile anywhere: the board is built around it.';
 export const THINKING = 'Computer is thinking…';
+export const HINT_THINKING = 'Looking for a good move…';
+export const HINT_MOVE = 'Hint: the highlighted tile is a good move.';
+export const HINT_PASS = 'Hint: passing is a good choice here.';
+
+// How long the search may think for a hint
+export const HINT_TIME_MS = 2000;
 
 export const initialGame = (mode: Mode = 'ai'): GameState => ({
   mode,
@@ -60,7 +74,8 @@ export const initialGame = (mode: Mode = 'ai'): GameState => ({
   lastMove: null,
   gameOver: null,
   message: '',
-  event: null
+  event: null,
+  hint: null
 });
 
 export const playerName = (mode: Mode, p: Player) => (mode === 'ai' && p === 2 ? 'Computer' : `Player ${p}`);
@@ -112,7 +127,8 @@ const claim = (g: GameState, id: number): GameState => {
       ? `${playerName(g.mode, player)} captured ${r.captured} tile${r.captured === 1 ? '' : 's'}!`
       : '',
     currentPlayer: opp,
-    event: { kind: 'claim', id, player, lost }
+    event: { kind: 'claim', id, player, lost },
+    hint: null
   };
 };
 
@@ -134,9 +150,23 @@ const pass = (g: GameState): GameState => {
   const passes = g.passes + 1;
   if (passes >= 2) {
     const { score } = scoreArea(g.tiles, g.stones);
-    return { ...g, passes, gameOver: score, message: resultText(g.mode, score) };
+    return { ...g, passes, gameOver: score, message: resultText(g.mode, score), hint: null };
   }
-  return { ...g, passes, currentPlayer: opponentOf(player), message: `${name} passes.` };
+  return { ...g, passes, currentPlayer: opponentOf(player), message: `${name} passes.`, hint: null };
+};
+
+// Asking for a hint: only on a person's turn once the board exists, and
+// not while one is already being looked for.
+const askHint = (g: GameState): GameState => {
+  if (!g.tiles || !isHumanTurn(g) || g.hint?.status === 'thinking') return g;
+  return { ...g, hint: { status: 'thinking', player: g.currentPlayer }, message: HINT_THINKING };
+};
+
+// The hint found: shown only if it is still being waited for (a move in
+// the meantime clears the request, so a late answer is dropped).
+const showHint = (g: GameState, move: number | null): GameState => {
+  if (g.hint?.status !== 'thinking') return g;
+  return { ...g, hint: { status: 'shown', move }, message: move === null ? HINT_PASS : HINT_MOVE };
 };
 
 // Moves are ignored before the game starts and after it ends.
@@ -155,6 +185,9 @@ export const gameReducer = (g: GameState, a: GameAction): GameState => {
     case 'claim': return claim(g, a.id);
     case 'pass': return pass(g);
     case 'thinking': return { ...g, message: THINKING };
+    case 'askHint': return askHint(g);
+    case 'hint': return showHint(g, a.move);
+    case 'clearHint': return g.hint ? { ...g, hint: null, message: '' } : g;
   }
 };
 

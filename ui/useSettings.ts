@@ -1,8 +1,11 @@
-// The settings remembered in this browser: the skin and the computer's
-// thinking time. What a saved value means is decided in prefs.ts.
+// The settings remembered in this browser: the skin, the computer's
+// thinking time and whether hints are available. What a saved value means
+// is decided in prefs.ts.
 import { useState } from 'react';
 import { SKINS, DEFAULT_SKIN } from '../skins';
-import { SKIN_STORAGE_KEY, THINK_STORAGE_KEY, parseSkinId, parseThinkSeconds } from '../prefs';
+import {
+  HINTS_STORAGE_KEY, SKIN_STORAGE_KEY, THINK_STORAGE_KEY, formatHints, parseHints, parseSkinId, parseThinkSeconds
+} from '../prefs';
 
 const read = (key: string): string | null => {
   try {
@@ -24,6 +27,7 @@ export const useSettings = () => {
   const [skinId, setSkinIdState] = useState(() =>
     parseSkinId(read(SKIN_STORAGE_KEY), SKINS.map(s => s.id), DEFAULT_SKIN));
   const [thinkSeconds, setThinkSecondsState] = useState(() => parseThinkSeconds(read(THINK_STORAGE_KEY)));
+  const [hintsOn, setHintsOnState] = useState(() => parseHints(read(HINTS_STORAGE_KEY)));
 
   const setSkinId = (id: string) => {
     setSkinIdState(id);
@@ -34,5 +38,10 @@ export const useSettings = () => {
     write(THINK_STORAGE_KEY, String(s));
   };
 
-  return { skinId, setSkinId, thinkSeconds, setThinkSeconds };
+  const setHintsOn = (on: boolean) => {
+    setHintsOnState(on);
+    write(HINTS_STORAGE_KEY, formatHints(on));
+  };
+
+  return { skinId, setSkinId, thinkSeconds, setThinkSeconds, hintsOn, setHintsOn };
 };
