@@ -59,8 +59,8 @@ export interface SkinEffects {
 
 export interface Skin {
   id: string; // stored in localStorage; keep it stable once released
-  name: string; // shown in the skin picker
-  order?: number; // position in the picker (lower first; default 100)
+  name: string; // shown on its card in Preferences
+  order?: number; // position among the cards (lower first; default 100)
   chrome: SkinChrome;
   // Player colors in the page text; default blue (1) and red (2)
   players?: { 1: PlayerStyle; 2: PlayerStyle };
