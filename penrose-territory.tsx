@@ -69,33 +69,42 @@ const PenroseTerritoryGame = () => {
   };
 
   // The layout fills exactly the visible window (dvh tracks mobile browser
-  // toolbars): header, scores and controls take their natural height and the
-  // board scales to the largest 4:3 size that fits in the rest.
+  // toolbars). Portrait: header, scores and controls stack above the board,
+  // which scales to the largest 4:3 size that fits in the rest. Landscape:
+  // the board is on the left at the full height (a 4:3 box, narrowed if it
+  // would leave the side panel less than 18rem), and the header, scores and
+  // controls go in a panel on the right that takes the remaining width, up
+  // to 28rem, scrolling if it runs out of height.
   return (
     <div className={`safe-area [--pad:0.5rem] sm:[--pad:0.75rem] w-full h-dvh overflow-hidden ${skin.chrome.page} flex flex-col items-center`}>
-      <div className="max-w-6xl w-full h-full flex flex-col gap-2">
-        <Header skin={skin} onSkin={setSkinId} onHelp={() => setShowHelp(true)} />
-        <Scoreboard game={game} panel={panel} players={players} />
-        <Controls
-          game={game}
-          dispatch={dispatch}
-          panel={panel}
-          thinkSeconds={thinkSeconds}
-          onThinkSeconds={setThinkSeconds}
-          tileType={tileType}
-          onTileType={setTileType}
-          rotation={rotation}
-          onRotate={rotate}
-          isTouchDevice={isTouchDevice}
-          target={target}
-          onPlace={placeTarget}
-          onStart={start}
-          onNewGame={newGame}
-        />
+      <div className="max-w-6xl landscape:max-w-none w-full h-full flex flex-col landscape:flex-row gap-2">
+        <div className="flex flex-col gap-2 short:gap-1.5 landscape:order-last landscape:flex-1 landscape:min-w-72 landscape:max-w-md landscape:min-h-0 landscape:overflow-y-auto">
+          <Header skin={skin} onSkin={setSkinId} onHelp={() => setShowHelp(true)} />
+          <Scoreboard game={game} panel={panel} players={players} />
+          <Controls
+            game={game}
+            dispatch={dispatch}
+            panel={panel}
+            thinkSeconds={thinkSeconds}
+            onThinkSeconds={setThinkSeconds}
+            tileType={tileType}
+            onTileType={setTileType}
+            rotation={rotation}
+            onRotate={rotate}
+            isTouchDevice={isTouchDevice}
+            target={target}
+            onPlace={placeTarget}
+            onStart={start}
+            onNewGame={newGame}
+          />
+        </div>
 
         {/* Size container: the canvas width is the smaller of the full
             width and the width a 4:3 board would have at the full height. */}
-        <div className="flex-1 min-h-0 flex items-start justify-center" style={{ containerType: 'size' }}>
+        <div
+          className="flex-1 min-h-0 flex items-start justify-center landscape:flex-none landscape:h-full landscape:aspect-[4/3] landscape:max-w-[calc(100%-18.5rem)] landscape:items-center landscape:justify-start"
+          style={{ containerType: 'size' }}
+        >
           <BoardCanvas
             skin={skin}
             game={game}
