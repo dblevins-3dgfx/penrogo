@@ -1,4 +1,4 @@
-// Go rules on a tile graph, and the computer players.
+// Go rules on a tile graph, and the computer player.
 //
 // A board is a list of tiles, each with `neighbors` (the tiles sharing an
 // edge with it). `stones[i]` is 0 for an empty tile, or the player (1 or 2)
@@ -101,83 +101,6 @@ export const scoreArea = (tiles: GraphTile[], stones: Stone[]) => {
     }
   }
   return { score, owner };
-};
-
-const isOwnEye = (tiles: GraphTile[], stones: Stone[], id: number, player: Player) =>
-  tiles[id].neighbors.every(n => stones[n] === player);
-
-// ---------------------------------------------------------------------
-// Heuristic player (the original computer opponent, kept as a baseline)
-//
-// Looks one move ahead, scoring stones plus an influence estimate (empty
-// tiles within 3 steps count for the nearer player) and penalizing its own
-// groups left in atari.
-// ---------------------------------------------------------------------
-
-const INFLUENCE_RANGE = 3;
-
-const evaluate = (tiles: GraphTile[], stones: Stone[], player: Player) => {
-  const opp = opponentOf(player);
-  const far = () => Array.from({ length: tiles.length }, () => Infinity);
-  const dist: Record<Player, number[]> = { 1: far(), 2: far() };
-  for (const p of [1, 2] as const) {
-    const queue: number[] = [];
-    stones.forEach((s, i) => { if (s === p) { dist[p][i] = 0; queue.push(i); } });
-    for (let k = 0; k < queue.length; k++) {
-      const i = queue[k];
-      if (dist[p][i] >= INFLUENCE_RANGE) continue;
-      for (const n of tiles[i].neighbors) {
-        if (stones[n] === 0 && dist[p][n] === Infinity) {
-          dist[p][n] = dist[p][i] + 1;
-          queue.push(n);
-        }
-      }
-    }
-  }
-
-  let value = 0;
-  for (let i = 0; i < tiles.length; i++) {
-    if (stones[i] === player) value += 1;
-    else if (stones[i] === opp) value -= 1;
-    else if (dist[player][i] < dist[opp][i]) value += 1;
-    else if (dist[opp][i] < dist[player][i]) value -= 1;
-  }
-
-  const seen = new Set<number>();
-  for (let i = 0; i < tiles.length; i++) {
-    if (stones[i] === 0 || seen.has(i)) continue;
-    const g = groupAt(tiles, stones, i);
-    g.members.forEach(m => seen.add(m));
-    if (g.liberties.size === 1) {
-      value += stones[i] === player ? -2 * g.members.length : 0.5 * g.members.length;
-    }
-  }
-  return value;
-};
-
-// Returns a tile id to play, or null to pass.
-export const chooseHeuristicMove = (tiles: GraphTile[], stones: Stone[], history: Set<string>, player: Player, opponentPassed: boolean): number | null => {
-  if (opponentPassed) {
-    const { score } = scoreArea(tiles, stones);
-    if (score[player] > score[opponentOf(player)]) return null;
-  }
-
-  const current = evaluate(tiles, stones, player);
-  let best: number | null = null;
-  let bestValue = -Infinity;
-  for (let id = 0; id < tiles.length; id++) {
-    if (stones[id] !== 0 || isOwnEye(tiles, stones, id, player)) continue;
-    const r = playMove(tiles, stones, history, id, player);
-    if (!r.ok) continue;
-    const v = evaluate(tiles, r.stones, player) + Math.random() * 0.01;
-    if (v > bestValue) {
-      bestValue = v;
-      best = id;
-    }
-  }
-
-  if (best === null || bestValue <= current + 0.05) return null;
-  return best;
 };
 
 // ---------------------------------------------------------------------

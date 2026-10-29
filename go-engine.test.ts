@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chooseHeuristicMove, chooseMctsMove, groupAt, playMove, positionKey, scoreArea } from './go-engine';
+import { chooseMctsMove, groupAt, playMove, positionKey, scoreArea } from './go-engine';
 import type { GraphTile, Stone } from './types';
 
 // A w x h square grid as a tile graph; tile (x, y) has id y * w + x.
@@ -132,7 +132,6 @@ test('the computer passes after a pass when it is ahead', () => {
   const stones = board('.2.', '2.2', '.2.');
   const r = chooseMctsMove(tiles, stones, new Set([positionKey(stones)]), 2, true, { maxPlayouts: 50 });
   assert.equal(r.move, null);
-  assert.equal(chooseHeuristicMove(tiles, stones, new Set([positionKey(stones)]), 2, true), null);
 });
 
 test('the computer does not pass after a pass when it is behind', () => {

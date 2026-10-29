@@ -1,6 +1,6 @@
 # Penrogo (Penrose Go): Specification
 
-Status: reflects the game as currently implemented (`PenroseTerritoryGame` in `penrose-territory.tsx` with its hooks and components in `ui/`, game state and turns in `game.ts`, saved settings in `prefs.ts`, board generation in `penrose-board.ts`, the opening tile in `opening.ts`, rules and computer players in `go-engine.ts`).
+Status: reflects the game as currently implemented (`PenroseTerritoryGame` in `penrose-territory.tsx` with its hooks and components in `ui/`, game state and turns in `game.ts`, saved settings in `prefs.ts`, board generation in `penrose-board.ts`, the opening tile in `opening.ts`, rules and the computer player in `go-engine.ts`).
 
 ## 1. Overview
 
@@ -54,8 +54,6 @@ Plays Player 2 in vs Computer mode, using Monte Carlo tree search (`go-engine.ts
 - **Priors.** New moves start with virtual results from the same tactics: capturing is favored, saving a group in atari next, playing next to the last move slightly, and self-atari is discouraged.
 - **Speed.** A board of typed arrays with liberty scans that stop as soon as the answer is known: about 1,000 playouts per second on a Raspberry Pi 5.
 - **Passing.** It passes when it has no move that is not an own-eye fill, or when the human has just passed and it is ahead by area score.
-
-The original one-move-lookahead heuristic player is kept in `go-engine.ts` (`chooseHeuristicMove`) as a baseline for testing.
 
 ## 7. Visual Feedback
 

@@ -48,7 +48,7 @@ One-time setup, needed before the first deploy: repository **Settings → Pages 
   - `BoardCanvas.tsx`: the board canvas and the skin's effects overlay, drawing and pointer, wheel and right-click input
 - `prefs.ts`: the saved settings' keys, choices and how a saved value is read back
 - `game.ts`: the game's state and moves as a pure reducer (opening, claiming, passing, the end), plus the status line, the scoreboard and what the pointer is over
-- `go-engine.ts`: Go rules on the tile graph and the computer players (Monte Carlo tree search, plus the older heuristic player as a baseline)
+- `go-engine.ts`: Go rules on the tile graph and the computer player (Monte Carlo tree search)
 - `ai-worker.ts`: runs the computer's search in a Web Worker
 - `penrose-board.ts`: Penrose tiling generation and the tile adjacency graph
 - `types.ts`: types shared by the board, the rules, the game and the skins (players, stones, points, tiles)
