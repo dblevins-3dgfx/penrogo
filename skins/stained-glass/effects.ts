@@ -61,7 +61,7 @@ export class StainedGlassEffects implements SkinEffects {
     this.beamStart = null;
     this.breaks = [];
     this.lastMove = null;
-    if (this.ctx) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    if (this.ctx && this.canvas) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.canvas = null;
     this.ctx = null;
   }
@@ -145,7 +145,7 @@ export class StainedGlassEffects implements SkinEffects {
   frame = (now: number) => {
     const { ctx, canvas } = this;
     this.raf = 0;
-    if (!ctx) return;
+    if (!ctx || !canvas) return;
 
     if (!this.busy() && now - this.lastFrame < 1000 / PERSISTENT_FPS) {
       this.raf = requestAnimationFrame(this.frame);
@@ -171,6 +171,7 @@ export class StainedGlassEffects implements SkinEffects {
   drawBeam(k: number) {
     if (k >= 1) return false;
     const { ctx, canvas } = this;
+    if (!ctx || !canvas) return false;
     const span = canvas.width * DIR.x + canvas.height * DIR.y;
     const pos = -BEAM_WIDTH + k * (span + 2 * BEAM_WIDTH);
     const fade = Math.sin(k * Math.PI); // swell in, fade out
@@ -198,6 +199,7 @@ export class StainedGlassEffects implements SkinEffects {
   // Cracks flash, then the shards fall. Returns false once they are gone.
   drawBreak(b: Break, t: number) {
     const { ctx } = this;
+    if (!ctx) return false;
     if (t >= CRACK_MS + FALL_MS) return false;
 
     const fallT = Math.max(0, t - CRACK_MS) / 1000;

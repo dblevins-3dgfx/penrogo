@@ -16,7 +16,7 @@ const HATCH_INSET = 0.9;
 export const HATCH_SPACING = 5;
 
 // Blueprint paper: deep blue with a fine grid and heavier major lines
-export const drawPaper = (ctx, w: number, h: number) => {
+export const drawPaper = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
   const g = ctx.createRadialGradient(w / 2, h / 2, 50, w / 2, h / 2, Math.hypot(w, h) / 2);
   g.addColorStop(0, '#1d4ed8');
   g.addColorStop(1, '#1e3a8a');
@@ -36,7 +36,7 @@ export const drawPaper = (ctx, w: number, h: number) => {
 };
 
 // An empty tile: a thin construction line; territory is stippled
-export const drawEmptyTile = (ctx, verts: Point[], territory: Owner = 0) => {
+export const drawEmptyTile = (ctx: CanvasRenderingContext2D, verts: Point[], territory: Owner = 0) => {
   if (territory) {
     ctx.save();
     tracePolygon(ctx, verts);
@@ -74,7 +74,7 @@ const hatchAngles = (player: Player) => (player === 1 ? [Math.PI / 4] : [Math.PI
 
 // Hatching; `fraction` 0..1 of the lines are drawn (sweeping across the
 // tile), or from the far side when `fromEnd` (for erasing)
-export const drawHatch = (ctx, verts: Point[], player: Player, fraction = 1, fromEnd = false) => {
+export const drawHatch = (ctx: CanvasRenderingContext2D, verts: Point[], player: Player, fraction = 1, fromEnd = false) => {
   if (fraction <= 0) return;
   const c = centroidOf(verts);
   const inset = verts.map(p => ({ x: c.x + (p.x - c.x) * HATCH_INSET, y: c.y + (p.y - c.y) * HATCH_INSET }));
@@ -99,7 +99,7 @@ export const drawHatch = (ctx, verts: Point[], player: Player, fraction = 1, fro
 };
 
 // The stone's outline; `fraction` 0..1 of the perimeter is traced
-export const drawOutline = (ctx, verts: Point[], player: Player, fraction = 1) => {
+export const drawOutline = (ctx: CanvasRenderingContext2D, verts: Point[], player: Player, fraction = 1) => {
   if (fraction <= 0) return;
   const n = verts.length;
   const lens = verts.map((p, i) => Math.hypot(verts[(i + 1) % n].x - p.x, verts[(i + 1) % n].y - p.y));
@@ -122,14 +122,14 @@ export const drawOutline = (ctx, verts: Point[], player: Player, fraction = 1) =
   ctx.restore();
 };
 
-export const drawStone = (ctx, verts: Point[], player: Player) => {
+export const drawStone = (ctx: CanvasRenderingContext2D, verts: Point[], player: Player) => {
   drawHatch(ctx, verts, player);
   drawOutline(ctx, verts, player);
 };
 
 // Draws the empty look over a tile (paper clipped to it plus its
 // construction line), so effects can make a drawn stone appear unfinished
-export const coverWithEmpty = (ctx, verts: Point[], w: number, h: number) => {
+export const coverWithEmpty = (ctx: CanvasRenderingContext2D, verts: Point[], w: number, h: number) => {
   ctx.save();
   tracePolygon(ctx, verts);
   ctx.clip();
@@ -140,7 +140,7 @@ export const coverWithEmpty = (ctx, verts: Point[], w: number, h: number) => {
 
 // Dimension markings for the last move: a measured line along its first
 // long edge, and the 72° angle at its tip (vertex 0 of kite and dart)
-export const drawDimensions = (ctx, verts: Point[]) => {
+export const drawDimensions = (ctx: CanvasRenderingContext2D, verts: Point[]) => {
   const c = centroidOf(verts);
   const a = verts[0], b = verts[1]; // a long edge for both kite and dart
   const len = Math.hypot(b.x - a.x, b.y - a.y);

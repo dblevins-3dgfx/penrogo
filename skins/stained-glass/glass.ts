@@ -26,7 +26,7 @@ export const paneRadius = (verts: Point[], c = centroidOf(verts)) =>
 
 // A colored glass pane: brighter where light comes through the middle,
 // with a slight per-pane tint, a few air bubbles and faint streaks.
-export const drawColoredPane = (ctx, verts: Point[], player: Player, alpha = 1) => {
+export const drawColoredPane = (ctx: CanvasRenderingContext2D, verts: Point[], player: Player, alpha = 1) => {
   const glass = GLASS[player];
   const c = centroidOf(verts);
   const r = paneRadius(verts, c);
@@ -75,7 +75,7 @@ export const drawColoredPane = (ctx, verts: Point[], player: Player, alpha = 1) 
 };
 
 // Pale frosted glass for an empty pane, optionally tinted (territory)
-export const drawFrostedPane = (ctx, verts: Point[], territory = 0) => {
+export const drawFrostedPane = (ctx: CanvasRenderingContext2D, verts: Point[], territory = 0) => {
   const c = centroidOf(verts);
   const r = paneRadius(verts, c);
   const rand = paneRandom(c);
@@ -93,7 +93,7 @@ export const drawFrostedPane = (ctx, verts: Point[], territory = 0) => {
 };
 
 // Lead came around a pane: dark, with a thin metallic highlight
-export const drawLead = (ctx, verts: Point[]) => {
+export const drawLead = (ctx: CanvasRenderingContext2D, verts: Point[]) => {
   ctx.save();
   tracePolygon(ctx, verts);
   ctx.lineJoin = 'round';
@@ -116,7 +116,7 @@ export const LIT = {
 };
 
 // Fill a pane with `color` in a radial glow; `strength` 0..1
-export const drawLitPane = (ctx, verts: Point[], color: number[], strength = 1) => {
+export const drawLitPane = (ctx: CanvasRenderingContext2D, verts: Point[], color: number[], strength = 1) => {
   const c = centroidOf(verts);
   const r = paneRadius(verts, c);
   ctx.save();
@@ -133,7 +133,7 @@ export const drawLitPane = (ctx, verts: Point[], color: number[], strength = 1) 
 
 // The last move: the pane lit from within, with a glowing gold rim;
 // `strength` 0..1
-export const drawInnerGlow = (ctx, verts: Point[], litColor: number[], strength = 1) => {
+export const drawInnerGlow = (ctx: CanvasRenderingContext2D, verts: Point[], litColor: number[], strength = 1) => {
   drawLitPane(ctx, verts, litColor, strength);
   ctx.save();
   tracePolygon(ctx, verts);

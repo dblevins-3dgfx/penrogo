@@ -60,7 +60,7 @@ export class NeonArcadeEffects implements SkinEffects {
     this.flickers = [];
     this.rollStart = null;
     this.lastMove = null;
-    if (this.ctx) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    if (this.ctx && this.canvas) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.canvas = null;
     this.ctx = null;
   }
@@ -111,7 +111,7 @@ export class NeonArcadeEffects implements SkinEffects {
   frame = (now: number) => {
     const { ctx, canvas } = this;
     this.raf = 0;
-    if (!ctx) return;
+    if (!ctx || !canvas) return;
 
     if (!this.busy() && now - this.lastFrame < 1000 / PERSISTENT_FPS) {
       this.raf = requestAnimationFrame(this.frame);
@@ -144,6 +144,7 @@ export class NeonArcadeEffects implements SkinEffects {
   drawFlicker(f: Flicker, t: number) {
     if (t < 0) return true; // staggered start
     const { ctx, canvas } = this;
+    if (!ctx || !canvas) return false;
     const color = NEON[f.player];
     if (f.kind === 'on') {
       const v = stepAt(FLICKER_ON, t);
@@ -168,6 +169,7 @@ export class NeonArcadeEffects implements SkinEffects {
   // A faint bright band drifting down the screen
   drawRoll(k: number) {
     const { ctx, canvas } = this;
+    if (!ctx || !canvas) return;
     const y = -ROLL_HEIGHT + k * (canvas.height + 2 * ROLL_HEIGHT);
     const g = ctx.createLinearGradient(0, y - ROLL_HEIGHT / 2, 0, y + ROLL_HEIGHT / 2);
     g.addColorStop(0, 'rgba(255, 255, 255, 0)');

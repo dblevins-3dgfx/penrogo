@@ -19,7 +19,7 @@ const GRAIN = (() => {
   }));
 })();
 
-export const drawWood = (ctx, w: number, h: number) => {
+export const drawWood = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
   const g = ctx.createLinearGradient(0, 0, w, h);
   g.addColorStop(0, '#e8bd78');
   g.addColorStop(0.5, '#dcae6a');
@@ -38,7 +38,7 @@ export const drawWood = (ctx, w: number, h: number) => {
   }
 };
 
-const traceLines = (ctx, verts: Point[]) => {
+const traceLines = (ctx: CanvasRenderingContext2D, verts: Point[]) => {
   ctx.beginPath();
   ctx.moveTo(verts[0].x, verts[0].y);
   verts.forEach(v => ctx.lineTo(v.x, v.y));
@@ -47,7 +47,7 @@ const traceLines = (ctx, verts: Point[]) => {
 
 // An empty point: ink lines along the tile edges, plus a territory marker
 // (a small square in the owner's color) at game end
-export const drawEmptyPoint = (ctx, verts: Point[], territory: Owner = 0) => {
+export const drawEmptyPoint = (ctx: CanvasRenderingContext2D, verts: Point[], territory: Owner = 0) => {
   traceLines(ctx, verts);
   ctx.strokeStyle = INK;
   ctx.lineWidth = 1;
@@ -63,7 +63,7 @@ export const drawEmptyPoint = (ctx, verts: Point[], territory: Owner = 0) => {
 };
 
 // A polygon with rounded corners
-const roundedPath = (ctx, pts: Point[], r: number) => {
+const roundedPath = (ctx: CanvasRenderingContext2D, pts: Point[], r: number) => {
   const n = pts.length;
   ctx.beginPath();
   const mid = (a: Point, b: Point) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
@@ -78,7 +78,7 @@ const roundedPath = (ctx, pts: Point[], r: number) => {
 
 // A stone. `scale` grows it about its center; `lift` raises it off the
 // board (a longer, softer shadow); `alpha` fades it.
-export const drawStone = (ctx, verts: Point[], player: Player, { scale = 1, lift = 0, alpha = 1 } = {}) => {
+export const drawStone = (ctx: CanvasRenderingContext2D, verts: Point[], player: Player, { scale = 1, lift = 0, alpha = 1 } = {}) => {
   const c = centroidOf(verts);
   const k = STONE_INSET * scale;
   const pts = verts.map(p => ({ x: c.x + (p.x - c.x) * k, y: c.y + (p.y - c.y) * k }));
@@ -135,7 +135,7 @@ export const drawStone = (ctx, verts: Point[], player: Player, { scale = 1, lift
 };
 
 // Go's last-move marker: a small ring in the opposite color
-export const drawLastMoveRing = (ctx, verts: Point[], player: Player) => {
+export const drawLastMoveRing = (ctx: CanvasRenderingContext2D, verts: Point[], player: Player) => {
   const c = centroidOf(verts);
   ctx.save();
   ctx.strokeStyle = player === 1 ? '#fafaf9' : '#111111';
@@ -148,7 +148,7 @@ export const drawLastMoveRing = (ctx, verts: Point[], player: Player) => {
 
 // The empty look over a tile (wood clipped to it plus its ink lines), so
 // effects can hide a stone the board has already drawn
-export const coverWithEmpty = (ctx, verts: Point[], w: number, h: number) => {
+export const coverWithEmpty = (ctx: CanvasRenderingContext2D, verts: Point[], w: number, h: number) => {
   ctx.save();
   traceLines(ctx, verts);
   ctx.clip();

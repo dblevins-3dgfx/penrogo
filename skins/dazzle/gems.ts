@@ -1,5 +1,6 @@
 // Dazzle's gem drawing, shared by the skin (static board) and its effects.
 import { tracePolygon, centroidOf, mix, rgb } from '../canvas-utils';
+import type { Player, Point } from '../types';
 
 // Gem palettes: facet shading runs from dark to light
 export const GEMS = {
@@ -20,7 +21,7 @@ export const BG_SPARKLES = (() => {
 
 // A faceted gem filling the tile: a smaller "table" facet in the middle,
 // and one side facet per edge, each shaded by how much it faces the light.
-export const drawGem = (ctx, verts, player, alpha = 1) => {
+export const drawGem = (ctx: CanvasRenderingContext2D, verts: Point[], player: Player, alpha = 1) => {
   const gem = GEMS[player];
   const c = centroidOf(verts);
   const inner = verts.map(v => ({ x: c.x + (v.x - c.x) * 0.5, y: c.y + (v.y - c.y) * 0.5 }));
@@ -90,7 +91,7 @@ export const drawGem = (ctx, verts, player, alpha = 1) => {
 };
 
 // Velvet background with fixed gold specks
-export const drawDazzleBackground = (ctx, w, h) => {
+export const drawDazzleBackground = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
   const bg = ctx.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, Math.hypot(w, h) / 2);
   bg.addColorStop(0, '#3b0764');
   bg.addColorStop(1, '#0c0418');
