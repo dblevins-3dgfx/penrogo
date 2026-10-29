@@ -2,9 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   OPENING_HINT, THINKING, gameReducer, initialGame, isComputerTurn, isHumanTurn,
-  playerName, resultText, shownScore, turnText, type GameAction, type GameState
+  placeAction, playerName, resultText, shownScore, targetAt, turnText, type GameAction, type GameState
 } from './game';
 import { BOARD_W, COMPUTER_OPENING, candidateVertices } from './opening';
+import { centroidOf } from './skins/canvas-utils';
 import { positionKey } from './go-engine';
 
 const run = (g: GameState, ...actions: GameAction[]) => actions.reduce(gameReducer, g);
@@ -180,4 +181,46 @@ test('the computer thinking shows on the status line', () => {
 test('New Game clears the board and the capture counts, keeping the mode', () => {
   const g = run(opened('ai'), { type: 'pass' }, { type: 'reset' });
   assert.deepEqual(g, initialGame('ai'));
+});
+
+// Spec 7, Hover and Opening preview: what the pointer is over
+test('before the board exists, the target is the opening tile under the pointer', () => {
+  const g = started();
+  const t = targetAt(g, { x: 400, y: 300 }, 'dart', 72);
+  assert.equal(t.kind, 'opening');
+  assert.equal(t.legal, true);
+  assert.deepEqual(t.kind === 'opening' && t.cand, { type: 'dart', x: 400, y: 300, rotation: 72 });
+  assert.deepEqual(t.verts, candidateVertices({ type: 'dart', x: 400, y: 300, rotation: 72 }));
+  assert.equal(targetAt(g, { x: 3, y: 300 }, 'kite', 0).legal, false, 'sticking out of the board');
+});
+
+test('on the board, the target is the tile under the pointer and whether claiming it is legal', () => {
+  const g = opened();
+  const free = quietTile(g);
+  const c = centroidOf(g.tiles[free].verts);
+  // A kite's centroid is inside it; a dart's is too (short of the notch)
+  const t = targetAt(g, c, 'kite', 0);
+  assert.deepEqual(t, { kind: 'tile', id: free, verts: g.tiles[free].verts, legal: true });
+  const taken = centroidOf(g.tiles[g.lastMove].verts);
+  assert.equal(targetAt(g, taken, 'kite', 0).legal, false);
+});
+
+test('there is no target off the tiles, without a pointer, or on the computer\'s turn', () => {
+  const g = opened();
+  assert.equal(targetAt(g, null, 'kite', 0), null);
+  assert.equal(targetAt(g, { x: -50, y: -50 }, 'kite', 0), null);
+  assert.equal(targetAt(initialGame(), { x: 400, y: 300 }, 'kite', 0), null, 'not started');
+  const ai = opened('ai');
+  assert.equal(targetAt(ai, { x: 400, y: 300 }, 'kite', 0), null);
+});
+
+test('placing on a target: the opening only if it fits; a tile is claimed even if illegal', () => {
+  const g = started();
+  const fits = targetAt(g, { x: 400, y: 300 }, 'kite', 0);
+  assert.deepEqual(placeAction(fits), { type: 'open', cand: { type: 'kite', x: 400, y: 300, rotation: 0 } });
+  assert.equal(placeAction(targetAt(g, { x: 3, y: 300 }, 'kite', 0)), null);
+  assert.equal(placeAction(null), null);
+  const o = opened();
+  const taken = targetAt(o, centroidOf(o.tiles[o.lastMove].verts), 'kite', 0);
+  assert.deepEqual(placeAction(taken), { type: 'claim', id: o.lastMove });
 });
