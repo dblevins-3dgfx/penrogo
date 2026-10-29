@@ -19,7 +19,7 @@ export const insetPolygon = (verts: Point[], k = TUBE_INSET) => {
 };
 
 // The arcade screen: near-black, a faint magenta grid and scanlines
-export const drawScreen = (ctx, w: number, h: number) => {
+export const drawScreen = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
   ctx.fillStyle = '#07020f';
   ctx.fillRect(0, 0, w, h);
   ctx.strokeStyle = 'rgba(236, 72, 153, 0.09)';
@@ -33,7 +33,7 @@ export const drawScreen = (ctx, w: number, h: number) => {
 };
 
 // An empty tile: a crisp dim outline, optionally tinted (territory)
-export const drawEmptyTile = (ctx, verts: Point[], territory: Owner = 0) => {
+export const drawEmptyTile = (ctx: CanvasRenderingContext2D, verts: Point[], territory: Owner = 0) => {
   tracePolygon(ctx, verts);
   if (territory) {
     ctx.fillStyle = rgb(NEON[territory], 0.12);
@@ -45,7 +45,7 @@ export const drawEmptyTile = (ctx, verts: Point[], territory: Owner = 0) => {
 };
 
 // A neon tube around the tile. `intensity` 0..1 (above 1 flares brighter).
-export const drawTube = (ctx, verts: Point[], color: number[], intensity = 1) => {
+export const drawTube = (ctx: CanvasRenderingContext2D, verts: Point[], color: number[], intensity = 1) => {
   if (intensity <= 0) return;
   const tube = insetPolygon(verts);
   const a = Math.min(1, intensity);
@@ -70,7 +70,7 @@ export const drawTube = (ctx, verts: Point[], color: number[], intensity = 1) =>
 };
 
 // A small four-way spark
-export const drawSpark = (ctx, p: Point, size: number, color: number[]) => {
+export const drawSpark = (ctx: CanvasRenderingContext2D, p: Point, size: number, color: number[]) => {
   ctx.save();
   ctx.strokeStyle = rgb(mix(color, [255, 255, 255], 0.7));
   ctx.shadowColor = rgb(color);
@@ -86,7 +86,7 @@ export const drawSpark = (ctx, p: Point, size: number, color: number[]) => {
 
 // Covers a tile with the empty look (the screen clipped to it, plus its
 // outline): lets the effects make a static tube appear switched off
-export const coverWithEmpty = (ctx, verts: Point[], w: number, h: number) => {
+export const coverWithEmpty = (ctx: CanvasRenderingContext2D, verts: Point[], w: number, h: number) => {
   ctx.save();
   tracePolygon(ctx, verts);
   ctx.clip();

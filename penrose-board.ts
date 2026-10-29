@@ -15,15 +15,23 @@
 // were found by exhaustive search as the only choice that keeps Penrose's
 // vertex coloring consistent and pairs every half with its mirror.
 
+import type { Point, Tile, TileType } from './types';
+
 const PHI = (1 + Math.sqrt(5)) / 2;
 
 const HALF_KITE = 0;
 const HALF_DART = 1;
 
-const lerp = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+// Points during generation are [x, y] pairs
+type XY = [number, number];
+type Half = [typeof HALF_KITE | typeof HALF_DART, XY, XY, XY];
+// A whole tile of the patch, before it is placed on the board
+type PatchTile = { type: TileType; verts: XY[] };
 
-const deflate = (halves) => {
-  const out = [];
+const lerp = (p: XY, q: XY, t: number): XY => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+
+const deflate = (halves: Half[]): Half[] => {
+  const out: Half[] = [];
   for (const [type, apex, axisEnd, side] of halves) {
     if (type === HALF_KITE) {
       const P = lerp(apex, axisEnd, 1 / PHI);
@@ -45,12 +53,12 @@ const deflate = (halves) => {
 };
 
 // Sun of five kites (ten half-kites) around the origin, tips at the center.
-const sun = (radius) => {
-  const halves = [];
+const sun = (radius: number): Half[] => {
+  const halves: Half[] = [];
   for (let k = 0; k < 5; k++) {
     const a = (k * 72 * Math.PI) / 180;
     const d = (36 * Math.PI) / 180;
-    const C = [radius * Math.cos(a), radius * Math.sin(a)];
+    const C: XY = [radius * Math.cos(a), radius * Math.sin(a)];
     for (const s of [a + d, a - d]) {
       halves.push([HALF_KITE, [0, 0], C, [radius * Math.cos(s), radius * Math.sin(s)]]);
     }
@@ -58,21 +66,22 @@ const sun = (radius) => {
   return halves;
 };
 
-const key = (p) => `${Math.round(p[0] * 100)},${Math.round(p[1] * 100)}`;
+const key = (p: XY) => `${Math.round(p[0] * 100)},${Math.round(p[1] * 100)}`;
 
 // Joins mirror halves into whole tiles. Vertices use the game's order:
 // kite [O (72°), B, C (144°), D], dart [M (72°), N, A' (216°), N'], where
 // vertex 0 to vertex 2 is the axis. Halves at the patch edge whose mirror
 // was cut off are dropped.
-const joinHalves = (halves) => {
-  const byAxis = new Map();
+const joinHalves = (halves: Half[]): PatchTile[] => {
+  const byAxis = new Map<string, Half[]>();
   for (const h of halves) {
     const k = `${h[0]}|${key(h[1])}|${key(h[2])}`;
-    if (!byAxis.has(k)) byAxis.set(k, []);
-    byAxis.get(k).push(h);
+    const pair = byAxis.get(k);
+    if (pair) pair.push(h);
+    else byAxis.set(k, [h]);
   }
 
-  const tiles = [];
+  const tiles: PatchTile[] = [];
   for (const pair of byAxis.values()) {
     if (pair.length !== 2) continue;
     const [[type, apex, axisEnd, s1], [, , , s2]] = pair;
@@ -85,13 +94,13 @@ const joinHalves = (halves) => {
 
 // Generates a patch whose kites have long edge `edge`, large enough to cover
 // a disc of about `edge * PHI ** depth` around the origin.
-export const generatePatch = (edge, depth) => {
+export const generatePatch = (edge: number, depth: number): PatchTile[] => {
   let tris = sun(edge * PHI ** depth);
   for (let i = 0; i < depth; i++) tris = deflate(tris);
   return joinHalves(tris);
 };
 
-const centroid = (vs) => ({
+const centroid = (vs: XY[]) => ({
   x: vs.reduce((s, v) => s + v[0], 0) / vs.length,
   y: vs.reduce((s, v) => s + v[1], 0) / vs.length,
 });
@@ -101,10 +110,11 @@ const centroid = (vs) => ({
 // exactly covers `openingVerts`, then clipped to tiles lying fully inside
 // the width x height playfield. Returns tiles with neighbor lists (tiles
 // sharing a full edge) and the index of the opening tile.
-export const buildBoard = (type, openingVerts, width, height, edge) => {
+export const buildBoard = (type: TileType, openingVerts: Point[], width: number, height: number, edge: number): { tiles: Tile[]; opening: number } => {
   const patch = generatePatch(edge, 7);
 
-  let anchor = null;
+  // The patch always has tiles of both types near its center
+  let anchor = patch.find(t => t.type === type) as PatchTile;
   let best = Infinity;
   for (const t of patch) {
     if (t.type !== type) continue;
@@ -114,20 +124,20 @@ export const buildBoard = (type, openingVerts, width, height, edge) => {
   }
 
   // Rotation taking the anchor's axis onto the opening's axis
-  const axis = (vs) => Math.atan2(vs[2][1] - vs[0][1], vs[2][0] - vs[0][0]);
-  const openingPts = openingVerts.map(v => [v.x, v.y]);
+  const axis = (vs: XY[]) => Math.atan2(vs[2][1] - vs[0][1], vs[2][0] - vs[0][0]);
+  const openingPts = openingVerts.map((v): XY => [v.x, v.y]);
   const theta = axis(openingPts) - axis(anchor.verts);
   const cos = Math.cos(theta), sin = Math.sin(theta);
-  const rot = ([x, y]) => [x * cos - y * sin, x * sin + y * cos];
+  const rot = ([x, y]: XY): XY => [x * cos - y * sin, x * sin + y * cos];
   const a0 = rot(anchor.verts[0]);
   const dx = openingPts[0][0] - a0[0];
   const dy = openingPts[0][1] - a0[1];
-  const place = (p) => { const [x, y] = rot(p); return { x: x + dx, y: y + dy }; };
+  const place = (p: XY): Point => { const [x, y] = rot(p); return { x: x + dx, y: y + dy }; };
 
   const EDGE_TOL = 0.5;
-  const inside = (v) => v.x >= -EDGE_TOL && v.x <= width + EDGE_TOL && v.y >= -EDGE_TOL && v.y <= height + EDGE_TOL;
+  const inside = (v: Point) => v.x >= -EDGE_TOL && v.x <= width + EDGE_TOL && v.y >= -EDGE_TOL && v.y <= height + EDGE_TOL;
 
-  const tiles = [];
+  const tiles: Tile[] = [];
   let opening = -1;
   for (const t of patch) {
     const verts = t.verts.map(place);
@@ -137,17 +147,18 @@ export const buildBoard = (type, openingVerts, width, height, edge) => {
   }
 
   // Neighbors: tiles that share a full edge
-  const edgeKey = (p, q) => {
+  const edgeKey = (p: Point, q: Point) => {
     const a = `${Math.round(p.x)},${Math.round(p.y)}`;
     const b = `${Math.round(q.x)},${Math.round(q.y)}`;
     return a < b ? `${a}|${b}` : `${b}|${a}`;
   };
-  const byEdge = new Map();
+  const byEdge = new Map<string, number[]>();
   for (const t of tiles) {
     for (let e = 0; e < 4; e++) {
       const k = edgeKey(t.verts[e], t.verts[(e + 1) % 4]);
-      if (!byEdge.has(k)) byEdge.set(k, []);
-      byEdge.get(k).push(t.id);
+      const ids = byEdge.get(k);
+      if (ids) ids.push(t.id);
+      else byEdge.set(k, [t.id]);
     }
   }
   for (const ids of byEdge.values()) {

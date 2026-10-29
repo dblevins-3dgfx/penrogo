@@ -18,7 +18,7 @@
 // The last move and the preview are persistent: while either is shown the
 // loop keeps running, capped at PERSISTENT_FPS when nothing else moves.
 
-import type { SkinEffects } from '../types';
+import type { Owner, Player, Point, SkinEffects } from '../types';
 import { centroidOf, tracePolygon, drawSparkle, mix, rgb } from '../canvas-utils';
 import { GEMS, LIGHT, BG_SPARKLES, drawDazzleBackground, drawGem } from './gems';
 
@@ -37,9 +37,9 @@ const BOB_MS = 1400; // preview float period
 const SHIMMER_MS = 1800; // preview shimmer repeat
 const PERSISTENT_FPS = 30;
 
-const rand = (a, b) => a + Math.random() * (b - a);
+const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
-const pointInPolygon = (x, y, verts) => {
+const pointInPolygon = (x: number, y: number, verts: Point[]) => {
   let inside = false;
   for (let i = 0, j = verts.length - 1; i < verts.length; j = i++) {
     const a = verts[i], b = verts[j];
@@ -48,19 +48,35 @@ const pointInPolygon = (x, y, verts) => {
   return inside;
 };
 
+type Shard = { pts: Point[]; x: number; y: number; vx: number; vy: number; spin: number; color: string };
+type Spark = { x: number; y: number; vx: number; vy: number; size: number };
+
+// An animation in progress, started at `start` (performance.now() time)
+type Effect = { start: number } & (
+  | { kind: 'pop'; verts: Point[]; player: Player }
+  | { kind: 'shatter'; shards: Shard[]; sparks: Spark[] }
+  | { kind: 'score'; x: number; y: number; text: string; player: Player }
+  | { kind: 'cascade'; items: { verts: Point[]; delay: number }[] }
+  | { kind: 'glint'; verts: Point[] }
+  | { kind: 'twinkle'; x: number; y: number }
+);
+type Of<K extends Effect['kind']> = Extract<Effect, { kind: K }>;
+// An effect to start now
+type NewEffect = Effect extends infer E ? (E extends Effect ? Omit<E, 'start'> : never) : never;
+
 export class DazzleEffects implements SkinEffects {
-  canvas = null;
-  ctx = null;
-  effects = [];
+  canvas: HTMLCanvasElement | null = null;
+  ctx: CanvasRenderingContext2D | null = null;
+  effects: Effect[] = [];
   raf = 0;
-  idleTimer = 0;
-  stoneVerts = [];
+  idleTimer: ReturnType<typeof setTimeout> | undefined;
+  stoneVerts: Point[][] = [];
   freeSparkles = BG_SPARKLES;
-  lastMove = null;
-  target = null;
+  lastMove: Point[] | null = null;
+  target: { verts: Point[]; player: Player } | null = null;
   lastFrame = 0;
 
-  attach(canvas) {
+  attach(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.scheduleIdle();
@@ -74,14 +90,14 @@ export class DazzleEffects implements SkinEffects {
     this.effects = [];
     this.lastMove = null;
     this.target = null;
-    if (this.ctx) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    if (this.ctx && this.canvas) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.canvas = null;
     this.ctx = null;
   }
 
   // Current stones (for idle glints) and the background specks not
   // covered by tiles (for twinkles). Clears effects when the board goes.
-  setBoard(tiles, stones) {
+  setBoard(tiles: { verts: Point[] }[] | null, stones: Owner[]) {
     if (!tiles) {
       this.stoneVerts = [];
       this.freeSparkles = BG_SPARKLES;
@@ -92,28 +108,28 @@ export class DazzleEffects implements SkinEffects {
     this.freeSparkles = BG_SPARKLES.filter(s => !tiles.some(t => pointInPolygon(s.x, s.y, t.verts)));
   }
 
-  setLastMove(verts) {
+  setLastMove(verts: Point[] | null) {
     this.lastMove = verts;
     this.kick();
   }
 
-  setTarget(target) {
+  setTarget(target: { verts: Point[]; player: Player } | null) {
     this.target = target;
     this.kick();
   }
 
-  place(verts, player) {
+  place(verts: Point[], player: Player) {
     this.add({ kind: 'pop', verts, player });
   }
 
-  capture(vertsList, player, capturer) {
+  capture(vertsList: Point[][], player: Player, capturer: Player) {
     if (!this.ctx) return;
     const now = performance.now();
     for (const verts of vertsList) {
       const c = centroidOf(verts);
       const gem = GEMS[player];
       // Shards: each edge split at its midpoint, fanned from the center
-      const shards = [];
+      const shards: Shard[] = [];
       verts.forEach((a, i) => {
         const b = verts[(i + 1) % verts.length];
         const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
@@ -147,20 +163,19 @@ export class DazzleEffects implements SkinEffects {
     this.add({ kind: 'score', x: cx, y: cy, text: `+${vertsList.length}`, player: capturer });
   }
 
-  cascade(tiles, originVerts) {
+  cascade(tiles: { verts: Point[] }[], originVerts: Point[]) {
     const o = centroidOf(originVerts);
     const items = tiles.map(t => {
       const c = centroidOf(t.verts);
       return { verts: t.verts, delay: (Math.hypot(c.x - o.x, c.y - o.y) / CASCADE_SPEED) * 1000 };
     });
-    const isOrigin = (verts) => verts.every(v => originVerts.some(w => Math.hypot(w.x - v.x, w.y - v.y) < 1));
+    const isOrigin = (verts: Point[]) => verts.every(v => originVerts.some(w => Math.hypot(w.x - v.x, w.y - v.y) < 1));
     this.add({ kind: 'cascade', items: items.filter(it => !isOrigin(it.verts)) });
   }
 
-  add(effect) {
+  add(effect: NewEffect) {
     if (!this.ctx) return;
-    effect.start = effect.start || performance.now();
-    this.effects.push(effect);
+    this.effects.push({ ...effect, start: performance.now() });
     this.kick();
   }
 
@@ -186,10 +201,10 @@ export class DazzleEffects implements SkinEffects {
     }, rand(IDLE_MIN_MS, IDLE_MAX_MS));
   }
 
-  frame = (now) => {
+  frame = (now: number) => {
     const { ctx, canvas } = this;
     this.raf = 0;
-    if (!ctx) return;
+    if (!ctx || !canvas) return;
 
     // With only the persistent effects showing, redraw at a lower rate
     if (!this.effects.length && now - this.lastFrame < 1000 / PERSISTENT_FPS) {
@@ -228,9 +243,9 @@ export class DazzleEffects implements SkinEffects {
   };
 
   // Breathing gold glow, a twinkling sparkle and a smaller one circling
-  drawLastMovePulse(now) {
-    const { ctx } = this;
-    const verts = this.lastMove;
+  drawLastMovePulse(now: number) {
+    const { ctx, lastMove: verts } = this;
+    if (!ctx || !verts) return;
     const p = (Math.sin((now / PULSE_MS) * Math.PI * 2) + 1) / 2; // 0..1
     ctx.save();
     tracePolygon(ctx, verts);
@@ -249,9 +264,10 @@ export class DazzleEffects implements SkinEffects {
 
   // The preview gem lifted off its socket: a soft shadow below, a gentle
   // bob, a glowing outline and a shimmer that sweeps across now and then
-  drawFloatingTarget(now) {
-    const { ctx } = this;
-    const { verts, player } = this.target;
+  drawFloatingTarget(now: number) {
+    const { ctx, target } = this;
+    if (!ctx || !target) return;
+    const { verts, player } = target;
     const lift = 3 + 1.5 * Math.sin((now / BOB_MS) * Math.PI * 2);
     ctx.save();
     tracePolygon(ctx, verts);
@@ -276,8 +292,9 @@ export class DazzleEffects implements SkinEffects {
     if (k < 1) this.drawGlint({ verts: lifted }, k * GLINT_MS);
   }
 
-  drawCascade(e, t) {
+  drawCascade(e: Of<'cascade'>, t: number) {
     const { ctx, canvas } = this;
+    if (!ctx || !canvas) return false;
     const hidden = e.items.filter(it => t < it.delay);
     if (hidden.length) {
       ctx.save();
@@ -309,10 +326,11 @@ export class DazzleEffects implements SkinEffects {
     return active;
   }
 
-  drawPop(e, t) {
+  drawPop(e: Of<'pop'>, t: number) {
     const k = t / POP_MS;
     if (k >= 1) return false;
     const { ctx } = this;
+    if (!ctx) return false;
     const c = centroidOf(e.verts);
     ctx.save();
     // White flash over the new gem
@@ -330,14 +348,15 @@ export class DazzleEffects implements SkinEffects {
     ctx.stroke();
     ctx.restore();
     // Sparks at the corners
-    e.verts.forEach(v => drawSparkle(this.ctx, c.x + (v.x - c.x) * s, c.y + (v.y - c.y) * s, 5 * (1 - k), 'rgba(255, 255, 255, 0.9)'));
+    e.verts.forEach(v => drawSparkle(ctx, c.x + (v.x - c.x) * s, c.y + (v.y - c.y) * s, 5 * (1 - k), 'rgba(255, 255, 255, 0.9)'));
     return true;
   }
 
-  drawShatter(e, t) {
+  drawShatter(e: Of<'shatter'>, t: number) {
     const k = t / SHATTER_MS;
     if (k >= 1) return false;
     const { ctx } = this;
+    if (!ctx) return false;
     const sec = t / 1000;
     ctx.save();
     ctx.globalAlpha = 1 - k * k;
@@ -362,10 +381,11 @@ export class DazzleEffects implements SkinEffects {
     return true;
   }
 
-  drawScore(e, t) {
+  drawScore(e: Of<'score'>, t: number) {
     const k = t / SCORE_MS;
     if (k >= 1) return false;
     const { ctx } = this;
+    if (!ctx) return false;
     ctx.save();
     ctx.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
     ctx.font = `bold ${Math.round(26 + 8 * Math.min(1, k * 4))}px system-ui, sans-serif`;
@@ -384,10 +404,11 @@ export class DazzleEffects implements SkinEffects {
   }
 
   // A bright band sweeping across the gem, from the lit corner away
-  drawGlint(e, t) {
+  drawGlint(e: { verts: Point[] }, t: number) {
     const k = t / GLINT_MS;
     if (k >= 1) return false;
     const { ctx } = this;
+    if (!ctx) return false;
     const c = centroidOf(e.verts);
     const r = Math.max(...e.verts.map(v => Math.hypot(v.x - c.x, v.y - c.y)));
     const p = -1.2 + 2.4 * k; // band position along the sweep
@@ -410,9 +431,9 @@ export class DazzleEffects implements SkinEffects {
     return true;
   }
 
-  drawTwinkle(e, t) {
+  drawTwinkle(e: Of<'twinkle'>, t: number) {
     const k = t / TWINKLE_MS;
-    if (k >= 1) return false;
+    if (k >= 1 || !this.ctx) return false;
     drawSparkle(this.ctx, e.x, e.y, 5 * Math.sin(k * Math.PI), 'rgba(253, 230, 138, 0.9)');
     return true;
   }

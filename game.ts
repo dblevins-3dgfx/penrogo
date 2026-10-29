@@ -6,16 +6,14 @@
 import { buildBoard } from './penrose-board';
 import { opponentOf, playMove, positionKey, scoreArea } from './go-engine';
 import {
-  BOARD_H, BOARD_W, TILE_SIZE, candidateVertices, isOutsidePlayfield, tileAtPoint,
-  type Candidate, type Point, type TileType
+  BOARD_H, BOARD_W, TILE_SIZE, candidateVertices, isOutsidePlayfield, tileAtPoint, type Candidate
 } from './opening';
 
-export type Player = 1 | 2;
-export type Stone = 0 | Player;
+import type { Player, Point, Score, Stone, Tile, TileType } from './types';
+
+export type { Player, Score, Stone, Tile };
 // 'ai' plays against the computer (as Player 2); 'two' is two people.
 export type Mode = 'ai' | 'two';
-export type Score = { 1: number; 2: number };
-export type Tile = { id: number; type: string; verts: Point[]; neighbors: number[] };
 
 // What the last action did, for the skin's animations. A new object each
 // time, so the component can react to it once.
@@ -100,7 +98,7 @@ const claim = (g: GameState, id: number): GameState => {
   if (!g.tiles) return g;
   const player = g.currentPlayer;
   const r = playMove(g.tiles, g.stones, g.history, id, player);
-  if (!r.ok) return { ...g, message: r.reason };
+  if (r.ok === false) return { ...g, message: r.reason };
   const opp = opponentOf(player);
   const lost = g.stones.map((s, i) => (s === opp && r.stones[i] === 0 ? i : -1)).filter(i => i >= 0);
   return {

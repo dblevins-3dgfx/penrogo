@@ -1,13 +1,13 @@
 // Plain Jane: flat colors on a white board with a light grid (the original
 // look). No animated effects.
-import type { Skin } from '../types';
+import type { Point, Skin } from '../types';
 import { tracePolygon, centroidOf, drawIllegalOutline } from '../canvas-utils';
 
 const PLAIN_FILL = { 1: 'rgba(59, 130, 246, 0.75)', 2: 'rgba(239, 68, 68, 0.75)' };
 const PLAIN_STROKE = { 1: '#1e40af', 2: '#991b1b' };
 const PLAIN_TERRITORY = { 1: 'rgba(59, 130, 246, 0.25)', 2: 'rgba(239, 68, 68, 0.25)' };
 
-const drawPlainStar = (ctx, c) => {
+const drawPlainStar = (ctx: CanvasRenderingContext2D, c: Point) => {
   ctx.save();
   ctx.beginPath();
   for (let i = 0; i < 10; i++) {

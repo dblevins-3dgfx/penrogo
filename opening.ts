@@ -2,6 +2,8 @@
 // player lies, whether it fits on the board, and which board tile a point
 // is over.
 
+import type { Point, TileType } from './types';
+
 export const PHI = (1 + Math.sqrt(5)) / 2;
 export const TILE_SIZE = 60;
 
@@ -12,8 +14,8 @@ export const BOARD_H = 600;
 // Rotation of the opening tile, in degrees, turns in steps of 36.
 export const ROTATION_STEP = 36;
 
-export type TileType = 'kite' | 'dart';
-export type Point = { x: number; y: number };
+export type { Point, TileType };
+
 // An opening tile as the player places it: its centroid and rotation.
 export type Candidate = { type: TileType; x: number; y: number; rotation: number };
 

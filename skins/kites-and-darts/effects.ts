@@ -56,7 +56,7 @@ export class KitesAndDartsEffects implements SkinEffects {
     this.gust = null;
     this.glints = [];
     this.lastMove = null;
-    if (this.ctx) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    if (this.ctx && this.canvas) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.canvas = null;
     this.ctx = null;
   }
@@ -107,7 +107,7 @@ export class KitesAndDartsEffects implements SkinEffects {
   frame = (now: number) => {
     const { ctx, canvas } = this;
     this.raf = 0;
-    if (!ctx) return;
+    if (!ctx || !canvas) return;
 
     if (!this.busy() && now - this.lastFrame < 1000 / PERSISTENT_FPS) {
       this.raf = requestAnimationFrame(this.frame);
@@ -127,6 +127,7 @@ export class KitesAndDartsEffects implements SkinEffects {
   // A rippling front moving along WIND. Returns false once it has left.
   drawGust(t: number) {
     const { ctx, canvas } = this;
+    if (!ctx || !canvas) return false;
     // Position of the front along the wind axis, starting off the board
     const span = canvas.width * Math.abs(WIND.x) + canvas.height * Math.abs(WIND.y);
     const front = -GUST_WIDTH + (t / 1000) * GUST_SPEED;
@@ -166,6 +167,7 @@ export class KitesAndDartsEffects implements SkinEffects {
   drawGlint(piece: Piece, k: number) {
     if (k >= 1) return false;
     const { ctx } = this;
+    if (!ctx) return false;
     const [point, , notch] = piece.verts;
     const along = { x: point.x - notch.x, y: point.y - notch.y };
     const p = -0.3 + 1.6 * k;

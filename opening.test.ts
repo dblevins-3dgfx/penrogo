@@ -5,18 +5,19 @@ import {
   candidateVertices, dartVertices, isOutsidePlayfield, kiteVertices, rotateStep, tileAtPoint,
   wheelPixels, wheelTurns
 } from './opening';
+import type { Point } from './types';
 
 const L = TILE_SIZE;
-const dist = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
-const near = (a, b) => Math.abs(a - b) < 1e-9;
-const centroid = (vs) => ({
+const dist = (p: Point, q: Point) => Math.hypot(p.x - q.x, p.y - q.y);
+const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
+const centroid = (vs: Point[]) => ({
   x: vs.reduce((s, v) => s + v.x, 0) / vs.length,
   y: vs.reduce((s, v) => s + v.y, 0) / vs.length,
 });
-const edges = (v) => [0, 1, 2, 3].map(e => dist(v[e], v[(e + 1) % 4]));
+const edges = (v: Point[]) => [0, 1, 2, 3].map(e => dist(v[e], v[(e + 1) % 4]));
 // Angle at vertex i, in degrees, measured inside the tile (vertices run
 // one way round, so a reflex angle comes out above 180)
-const angleAt = (v, i) => {
+const angleAt = (v: Point[], i: number) => {
   const p = v[(i + 3) % 4], q = v[i], r = v[(i + 1) % 4];
   const a1 = Math.atan2(p.y - q.y, p.x - q.x);
   const a2 = Math.atan2(r.y - q.y, r.x - q.x);
@@ -54,7 +55,7 @@ test('the opening tile is centered on its centroid', () => {
 
 // Spec 3: rotated in 36 degree steps
 test('rotation turns the axis by the same angle', () => {
-  const axis = (v) => Math.atan2(v[2].y - v[0].y, v[2].x - v[0].x) * 180 / Math.PI;
+  const axis = (v: Point[]) => Math.atan2(v[2].y - v[0].y, v[2].x - v[0].x) * 180 / Math.PI;
   const a0 = axis(kiteVertices(0, 0, 0));
   const a36 = axis(kiteVertices(0, 0, 36));
   assert.ok(near(a36 - a0, 36));
@@ -94,7 +95,7 @@ test('tileAtPoint finds the tile under a point, and misses the dart notch', () =
   // On the axis: short of the reflex vertex A' is inside the dart; just
   // past it is in the notch, outside the tile
   const [m, , a] = dart.verts;
-  const onAxis = (t) => ({ x: m.x + (a.x - m.x) * t, y: m.y + (a.y - m.y) * t });
+  const onAxis = (t: number) => ({ x: m.x + (a.x - m.x) * t, y: m.y + (a.y - m.y) * t });
   const inside = onAxis(0.8);
   const notch = onAxis(1.2);
   assert.equal(tileAtPoint(tiles, inside.x, inside.y), 1);

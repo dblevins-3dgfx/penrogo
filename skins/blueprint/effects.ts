@@ -36,7 +36,7 @@ export class BlueprintEffects implements SkinEffects {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.jobs = [];
-    if (this.ctx) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    if (this.ctx && this.canvas) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.canvas = null;
     this.ctx = null;
   }
@@ -66,7 +66,7 @@ export class BlueprintEffects implements SkinEffects {
   frame = (now: number) => {
     const { ctx, canvas } = this;
     this.raf = 0;
-    if (!ctx) return;
+    if (!ctx || !canvas) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     this.jobs = this.jobs.filter(j => (j.kind === 'draw' ? this.drawIn(j, now - j.start) : this.erase(j, now - j.start)));
     if (this.jobs.length) this.raf = requestAnimationFrame(this.frame);
@@ -77,6 +77,7 @@ export class BlueprintEffects implements SkinEffects {
   drawIn(j: Job, t: number) {
     if (t >= TRACE_MS + HATCH_MS) return false;
     const { ctx, canvas } = this;
+    if (!ctx || !canvas) return false;
     coverWithEmpty(ctx, j.verts, canvas.width, canvas.height);
     const trace = Math.min(1, t / TRACE_MS);
     const hatch = Math.max(0, (t - TRACE_MS) / HATCH_MS);
@@ -113,6 +114,7 @@ export class BlueprintEffects implements SkinEffects {
     if (t < 0) return true; // staggered start
     if (t >= ERASE_MS) return false;
     const { ctx } = this;
+    if (!ctx) return false;
     const k = t / ERASE_MS;
     drawHatch(ctx, j.verts, j.player, 1 - k, true);
     ctx.save();
@@ -121,7 +123,7 @@ export class BlueprintEffects implements SkinEffects {
     ctx.restore();
     const sec = t / 1000;
     ctx.fillStyle = `rgba(254, 226, 226, ${0.8 * (1 - k)})`;
-    for (const cr of j.crumbs) {
+    for (const cr of j.crumbs ?? []) {
       ctx.fillRect(cr.x + cr.vx * sec, cr.y + cr.vy * sec + 0.5 * GRAVITY * sec * sec, cr.size, cr.size);
     }
     return true;

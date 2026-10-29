@@ -1,13 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chooseHeuristicMove, chooseMctsMove, groupAt, playMove, positionKey, scoreArea } from './go-engine';
+import type { GraphTile, Stone } from './types';
 
 // A w x h square grid as a tile graph; tile (x, y) has id y * w + x.
-const grid = (w, h) => {
-  const tiles = [];
+const grid = (w: number, h: number): GraphTile[] => {
+  const tiles: GraphTile[] = [];
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      const neighbors = [];
+      const neighbors: number[] = [];
       if (x > 0) neighbors.push(y * w + x - 1);
       if (x < w - 1) neighbors.push(y * w + x + 1);
       if (y > 0) neighbors.push((y - 1) * w + x);
@@ -19,7 +20,7 @@ const grid = (w, h) => {
 };
 
 // Stones from rows of '.', '1' and '2'.
-const board = (...rows) => rows.join('').split('').map(c => (c === '.' ? 0 : Number(c)));
+const board = (...rows: string[]): Stone[] => rows.join('').split('').map(c => (c === '.' ? 0 : Number(c) as Stone));
 
 // Spec 5, Moves: an occupied tile can't be claimed
 test('a taken tile is illegal', () => {

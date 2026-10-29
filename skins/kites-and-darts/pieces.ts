@@ -27,14 +27,14 @@ export const METAL = {
   2: { tint: mix(SLATE, [220, 38, 38], 0.72), dark: [92, 14, 14] }
 };
 
-export const fillPolygon = (ctx, pts: Point[], style) => {
+export const fillPolygon = (ctx: CanvasRenderingContext2D, pts: Point[], style: string | CanvasGradient) => {
   tracePolygon(ctx, pts);
   ctx.fillStyle = style;
   ctx.fill();
 };
 
 // Parallel lines across the clip region, for weave and brushing textures
-export const hatch = (ctx, c: Point, r: number, dir: Point, spacing: number, style: string) => {
+export const hatch = (ctx: CanvasRenderingContext2D, c: Point, r: number, dir: Point, spacing: number, style: string) => {
   const nx = -dir.y, ny = dir.x;
   ctx.strokeStyle = style;
   ctx.lineWidth = 0.6;
@@ -48,7 +48,7 @@ export const hatch = (ctx, c: Point, r: number, dir: Point, spacing: number, sty
 
 // A silk kite: four panels split by the spars, two-tone (nose panels
 // lighter), with sheen, weave, stitching and wooden spars.
-export const drawSilkKite = (ctx, v: Point[], player: Player, alpha = 1) => {
+export const drawSilkKite = (ctx: CanvasRenderingContext2D, v: Point[], player: Player, alpha = 1) => {
   const silk = SILK[player];
   const m = lerp(v[1], v[3], 0.5); // where the spars cross
   const c = centroidOf(v);
@@ -111,7 +111,7 @@ export const drawSilkKite = (ctx, v: Point[], player: Player, alpha = 1) => {
 
 // A metal arrowhead: two halves meeting at a raised ridge, each brushed
 // metal shaded by how it faces the light, with a glint and a rivet.
-export const drawMetalDart = (ctx, v: Point[], player: Player, alpha = 1) => {
+export const drawMetalDart = (ctx: CanvasRenderingContext2D, v: Point[], player: Player, alpha = 1) => {
   const metal = METAL[player];
   const c = centroidOf(v);
   const r = Math.max(...v.map(p => Math.hypot(p.x - c.x, p.y - c.y)));
@@ -180,14 +180,14 @@ export const drawMetalDart = (ctx, v: Point[], player: Player, alpha = 1) => {
   ctx.restore();
 };
 
-export const drawPiece = (ctx, v: Point[], player: Player, alpha = 1) =>
+export const drawPiece = (ctx: CanvasRenderingContext2D, v: Point[], player: Player, alpha = 1) =>
   isKite(v) ? drawSilkKite(ctx, v, player, alpha) : drawMetalDart(ctx, v, player, alpha);
 
 // The last-move marker: a white outline, plus a tail. Kites trail a ribbon
 // with two bows from their tail (O); darts become arrowheads, with a shaft
 // and fletching behind the notch (A'). With `t` (seconds) the ribbon or
 // fletching flutters; without it they are drawn still.
-export const drawLastMoveMarker = (ctx, verts: Point[], t: number | null = null) => {
+export const drawLastMoveMarker = (ctx: CanvasRenderingContext2D, verts: Point[], t: number | null = null) => {
   ctx.save();
   tracePolygon(ctx, verts);
   ctx.shadowColor = '#ffffff';
@@ -212,7 +212,7 @@ const tailFrame = (verts: Point[], tail: Point) => {
   return { u, n: { x: -u.y, y: u.x } };
 };
 
-const drawRibbon = (ctx, verts: Point[], t: number | null) => {
+const drawRibbon = (ctx: CanvasRenderingContext2D, verts: Point[], t: number | null) => {
   const tail = verts[0];
   const { u, n } = tailFrame(verts, tail);
   // Wave offset at step i (0..14): travels down the ribbon over time and
@@ -260,7 +260,7 @@ const VANE_FRONT = 15; // where the vanes start, measured from the notch
 const VANE_BACK = 33; // where they end (squared-off back edge)
 const VANE_HEIGHT = 8.5;
 
-const drawFletching = (ctx, verts: Point[], t: number | null) => {
+const drawFletching = (ctx: CanvasRenderingContext2D, verts: Point[], t: number | null) => {
   const notch = verts[2];
   const { u } = tailFrame(verts, notch);
   const sway = t === null ? 0 : Math.sin(t * 5) * 0.035;

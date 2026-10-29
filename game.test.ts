@@ -12,9 +12,30 @@ const run = (g: GameState, ...actions: GameAction[]) => actions.reduce(gameReduc
 const started = (mode: 'ai' | 'two' = 'two') => run(initialGame(mode), { type: 'start' });
 const opened = (mode: 'ai' | 'two' = 'two') => run(started(mode), { type: 'open', cand: COMPUTER_OPENING });
 
+// The board, the last move and the last event, which exist once the
+// opening is played; each fails the test if it doesn't
+const tilesOf = (g: GameState) => {
+  assert.ok(g.tiles, 'the board exists');
+  return g.tiles;
+};
+const lastOf = (g: GameState) => {
+  assert.ok(g.lastMove !== null, 'there is a last move');
+  return g.lastMove;
+};
+const eventOf = (g: GameState) => {
+  assert.ok(g.event, 'there is an event');
+  return g.event;
+};
+// What a point is over, which the test expects to be something
+const targetOf = (...args: Parameters<typeof targetAt>) => {
+  const t = targetAt(...args);
+  assert.ok(t, 'there is a target');
+  return t;
+};
+
 // An empty tile whose neighbors are all empty too, so claiming it captures nothing
 const quietTile = (g: GameState) =>
-  g.tiles.findIndex((t, i) => g.stones[i] === 0 && t.neighbors.length === 4 && t.neighbors.every(n => g.stones[n] === 0));
+  tilesOf(g).findIndex((t, i) => g.stones[i] === 0 && t.neighbors.length === 4 && t.neighbors.every(n => g.stones[n] === 0));
 
 test('a new game starts with the opening hint, Player 1 to move', () => {
   const g = started();
@@ -34,14 +55,15 @@ test('the mode can change before the game starts, not during it', () => {
 // Spec 5, Opening
 test('the opening builds the board and becomes the opener\'s first stone', () => {
   const g = opened();
-  assert.ok(g.tiles.length > 150);
+  assert.ok(tilesOf(g).length > 150);
   assert.equal(g.stones.filter(s => s !== 0).length, 1);
-  assert.equal(g.stones[g.lastMove], 1);
+  assert.equal(g.stones[lastOf(g)], 1);
   assert.equal(g.currentPlayer, 2, 'the other player moves next');
   assert.equal(g.message, '');
   assert.deepEqual([...g.history], [positionKey(g.stones)]);
-  assert.equal(g.event.kind, 'opening');
-  assert.deepEqual(g.event.kind === 'opening' && g.event.verts, candidateVertices(COMPUTER_OPENING));
+  const ev = eventOf(g);
+  assert.equal(ev.kind, 'opening');
+  assert.deepEqual(ev.kind === 'opening' && ev.verts, candidateVertices(COMPUTER_OPENING));
 });
 
 test('an opening tile sticking out of the board is ignored', () => {
@@ -64,7 +86,7 @@ test('Skip Opening hands the opening to the other player', () => {
   assert.equal(g.message, 'Player 1 skipped the opening.');
   assert.equal(isComputerTurn(g), true);
   const h = run(g, { type: 'open', cand: COMPUTER_OPENING });
-  assert.equal(h.stones[h.lastMove], 2, 'the computer opens');
+  assert.equal(h.stones[lastOf(h)], 2, 'the computer opens');
   assert.equal(h.currentPlayer, 1);
 });
 
@@ -84,7 +106,7 @@ test('claiming a tile places a stone and passes the turn', () => {
 
 test('an illegal claim leaves the board alone and says why', () => {
   const g = opened();
-  const h = run(g, { type: 'claim', id: g.lastMove });
+  const h = run(g, { type: 'claim', id: lastOf(g) });
   assert.equal(h.stones, g.stones);
   assert.equal(h.currentPlayer, 2);
   assert.equal(h.message, 'That tile is taken.');
@@ -94,8 +116,8 @@ test('an illegal claim leaves the board alone and says why', () => {
 test('a capture removes the group, counts it and names the capturer', () => {
   let g = opened('ai');
   // Surround Player 1's opening stone with the computer's stones
-  const target = g.lastMove;
-  const ring = g.tiles[target].neighbors;
+  const target = lastOf(g);
+  const ring = tilesOf(g)[target].neighbors;
   for (let k = 0; k < ring.length; k++) {
     g = run(g, { type: 'claim', id: ring[k] });
     if (k < ring.length - 1) {
@@ -107,7 +129,8 @@ test('a capture removes the group, counts it and names the capturer', () => {
   assert.equal(g.captured[2], 1);
   assert.equal(g.captured[1], 0);
   assert.equal(g.message, 'Computer captured 1 tile!');
-  assert.ok(g.event.kind === 'claim' && g.event.lost.includes(target));
+  const ev = eventOf(g);
+  assert.ok(ev.kind === 'claim' && ev.lost.includes(target));
 });
 
 // Spec 5, End: two consecutive passes end the game
@@ -125,9 +148,10 @@ test('two passes in a row end the game with the area score', () => {
   const g = run(opened(), { type: 'pass' }, { type: 'pass' });
   assert.ok(g.gameOver);
   // Player 1's lone opening stone surrounds the whole empty board
-  assert.equal(g.gameOver[1], g.tiles.length);
+  const n = tilesOf(g).length;
+  assert.equal(g.gameOver[1], n);
   assert.equal(g.gameOver[2], 0);
-  assert.equal(g.message, `Game over: Player 1 wins ${g.tiles.length} to 0.`);
+  assert.equal(g.message, `Game over: Player 1 wins ${n} to 0.`);
   assert.equal(turnText(g), 'Game Over');
   assert.equal(isHumanTurn(g), false);
 });
@@ -186,23 +210,24 @@ test('New Game clears the board and the capture counts, keeping the mode', () =>
 // Spec 7, Hover and Opening preview: what the pointer is over
 test('before the board exists, the target is the opening tile under the pointer', () => {
   const g = started();
-  const t = targetAt(g, { x: 400, y: 300 }, 'dart', 72);
+  const t = targetOf(g, { x: 400, y: 300 }, 'dart', 72);
   assert.equal(t.kind, 'opening');
   assert.equal(t.legal, true);
   assert.deepEqual(t.kind === 'opening' && t.cand, { type: 'dart', x: 400, y: 300, rotation: 72 });
   assert.deepEqual(t.verts, candidateVertices({ type: 'dart', x: 400, y: 300, rotation: 72 }));
-  assert.equal(targetAt(g, { x: 3, y: 300 }, 'kite', 0).legal, false, 'sticking out of the board');
+  assert.equal(targetOf(g, { x: 3, y: 300 }, 'kite', 0).legal, false, 'sticking out of the board');
 });
 
 test('on the board, the target is the tile under the pointer and whether claiming it is legal', () => {
   const g = opened();
+  const tiles = tilesOf(g);
   const free = quietTile(g);
-  const c = centroidOf(g.tiles[free].verts);
+  const c = centroidOf(tiles[free].verts);
   // A kite's centroid is inside it; a dart's is too (short of the notch)
   const t = targetAt(g, c, 'kite', 0);
-  assert.deepEqual(t, { kind: 'tile', id: free, verts: g.tiles[free].verts, legal: true });
-  const taken = centroidOf(g.tiles[g.lastMove].verts);
-  assert.equal(targetAt(g, taken, 'kite', 0).legal, false);
+  assert.deepEqual(t, { kind: 'tile', id: free, verts: tiles[free].verts, legal: true });
+  const taken = centroidOf(tiles[lastOf(g)].verts);
+  assert.equal(targetOf(g, taken, 'kite', 0).legal, false);
 });
 
 test('there is no target off the tiles, without a pointer, or on the computer\'s turn', () => {
@@ -221,6 +246,6 @@ test('placing on a target: the opening only if it fits; a tile is claimed even i
   assert.equal(placeAction(targetAt(g, { x: 3, y: 300 }, 'kite', 0)), null);
   assert.equal(placeAction(null), null);
   const o = opened();
-  const taken = targetAt(o, centroidOf(o.tiles[o.lastMove].verts), 'kite', 0);
-  assert.deepEqual(placeAction(taken), { type: 'claim', id: o.lastMove });
+  const taken = targetAt(o, centroidOf(tilesOf(o)[lastOf(o)].verts), 'kite', 0);
+  assert.deepEqual(placeAction(taken), { type: 'claim', id: lastOf(o) });
 });

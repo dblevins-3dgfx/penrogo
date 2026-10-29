@@ -4,7 +4,15 @@
 // edge with it). `stones[i]` is 0 for an empty tile, or the player (1 or 2)
 // who holds it.
 
-export const opponentOf = (p) => (p === 1 ? 2 : 1);
+import type { GraphTile, Player, Score, Stone } from './types';
+
+// The outcome of trying a move: the new position and how many stones it
+// captured, or why it is illegal.
+export type MoveResult =
+  | { ok: true; stones: Stone[]; captured: number }
+  | { ok: false; reason: string };
+
+export const opponentOf = (p: Player): Player => (p === 1 ? 2 : 1);
 
 // ---------------------------------------------------------------------
 // Rules
@@ -12,7 +20,7 @@ export const opponentOf = (p) => (p === 1 ? 2 : 1);
 
 // The connected group of same-colored stones containing `start`, and its
 // liberties (empty tiles adjacent to the group).
-export const groupAt = (tiles, stones, start) => {
+export const groupAt = (tiles: GraphTile[], stones: Stone[], start: number) => {
   const color = stones[start];
   const members = [start];
   const seen = new Set(members);
@@ -29,12 +37,12 @@ export const groupAt = (tiles, stones, start) => {
   return { members, liberties };
 };
 
-export const positionKey = (stones) => stones.join('');
+export const positionKey = (stones: Stone[]) => stones.join('');
 
 // Plays `player` on tile `id`. Opponent groups left without liberties are
 // removed; a move that leaves its own group without liberties (suicide) or
 // repeats an earlier position (superko) is illegal.
-export const playMove = (tiles, stones, history, id, player) => {
+export const playMove = (tiles: GraphTile[], stones: Stone[], history: Set<string>, id: number, player: Player): MoveResult => {
   if (stones[id] !== 0) return { ok: false, reason: 'That tile is taken.' };
 
   const next = stones.slice();
@@ -59,29 +67,30 @@ export const playMove = (tiles, stones, history, id, player) => {
   return { ok: true, stones: next, captured };
 };
 
-// Area scoring: each player's stones plus the empty regions bordered only
-// by that player's stones. Also returns the owner of every empty tile.
 // The connected empty region containing empty tile `start`, and the
 // players whose stones border it. Marks the region's tiles in `seen`.
-const emptyRegion = (tiles, stones, start, seen) => {
+const emptyRegion = (tiles: GraphTile[], stones: Stone[], start: number, seen: Set<number>) => {
   const region = [start];
   seen.add(start);
-  const borders = new Set<1 | 2>();
+  const borders = new Set<Player>();
   for (let k = 0; k < region.length; k++) {
     for (const n of tiles[region[k]].neighbors) {
-      if (stones[n] !== 0) borders.add(stones[n]);
+      const s = stones[n];
+      if (s !== 0) borders.add(s);
       else if (!seen.has(n)) { seen.add(n); region.push(n); }
     }
   }
   return { region, borders };
 };
 
-export const scoreArea = (tiles, stones) => {
-  const owner: (0 | 1 | 2)[] = Array.from({ length: tiles.length }, () => 0);
-  const score = { 1: 0, 2: 0 };
+// Area scoring: each player's stones plus the empty regions bordered only
+// by that player's stones. Also returns the owner of every empty tile.
+export const scoreArea = (tiles: GraphTile[], stones: Stone[]) => {
+  const owner: Stone[] = Array.from({ length: tiles.length }, () => 0);
+  const score: Score = { 1: 0, 2: 0 };
   stones.forEach(s => { if (s) score[s] += 1; });
 
-  const seen = new Set();
+  const seen = new Set<number>();
   for (let i = 0; i < tiles.length; i++) {
     if (stones[i] !== 0 || seen.has(i)) continue;
     const { region, borders } = emptyRegion(tiles, stones, i, seen);
@@ -94,7 +103,7 @@ export const scoreArea = (tiles, stones) => {
   return { score, owner };
 };
 
-const isOwnEye = (tiles, stones, id, player) =>
+const isOwnEye = (tiles: GraphTile[], stones: Stone[], id: number, player: Player) =>
   tiles[id].neighbors.every(n => stones[n] === player);
 
 // ---------------------------------------------------------------------
@@ -107,12 +116,12 @@ const isOwnEye = (tiles, stones, id, player) =>
 
 const INFLUENCE_RANGE = 3;
 
-const evaluate = (tiles, stones, player) => {
+const evaluate = (tiles: GraphTile[], stones: Stone[], player: Player) => {
   const opp = opponentOf(player);
   const far = () => Array.from({ length: tiles.length }, () => Infinity);
-  const dist = { 1: far(), 2: far() };
-  for (const p of [1, 2]) {
-    const queue = [];
+  const dist: Record<Player, number[]> = { 1: far(), 2: far() };
+  for (const p of [1, 2] as const) {
+    const queue: number[] = [];
     stones.forEach((s, i) => { if (s === p) { dist[p][i] = 0; queue.push(i); } });
     for (let k = 0; k < queue.length; k++) {
       const i = queue[k];
@@ -134,7 +143,7 @@ const evaluate = (tiles, stones, player) => {
     else if (dist[opp][i] < dist[player][i]) value -= 1;
   }
 
-  const seen = new Set();
+  const seen = new Set<number>();
   for (let i = 0; i < tiles.length; i++) {
     if (stones[i] === 0 || seen.has(i)) continue;
     const g = groupAt(tiles, stones, i);
@@ -147,14 +156,14 @@ const evaluate = (tiles, stones, player) => {
 };
 
 // Returns a tile id to play, or null to pass.
-export const chooseHeuristicMove = (tiles, stones, history, player, opponentPassed) => {
+export const chooseHeuristicMove = (tiles: GraphTile[], stones: Stone[], history: Set<string>, player: Player, opponentPassed: boolean): number | null => {
   if (opponentPassed) {
     const { score } = scoreArea(tiles, stones);
     if (score[player] > score[opponentOf(player)]) return null;
   }
 
   const current = evaluate(tiles, stones, player);
-  let best = null;
+  let best: number | null = null;
   let bestValue = -Infinity;
   for (let id = 0; id < tiles.length; id++) {
     if (stones[id] !== 0 || isOwnEye(tiles, stones, id, player)) continue;
@@ -201,7 +210,7 @@ class FastBoard {
   groupSize = 0;
   lastLib = -1;
 
-  constructor(start, list, n) {
+  constructor(start: Int32Array, list: Int32Array, n: number) {
     this.n = n;
     this.start = start;
     this.list = list;
@@ -214,7 +223,7 @@ class FastBoard {
     this.stack = new Int32Array(n);
   }
 
-  load(stones) {
+  load(stones: Stone[]) {
     this.emptyCount = 0;
     for (let p = 0; p < this.n; p++) {
       this.stones[p] = stones[p];
@@ -223,7 +232,7 @@ class FastBoard {
     this.ko = -1;
   }
 
-  copyFrom(b) {
+  copyFrom(b: FastBoard) {
     this.stones.set(b.stones);
     this.empty.set(b.empty);
     this.emptyPos.set(b.emptyPos);
@@ -231,12 +240,12 @@ class FastBoard {
     this.ko = b.ko;
   }
 
-  addEmpty(p) {
+  addEmpty(p: number) {
     this.emptyPos[p] = this.emptyCount;
     this.empty[this.emptyCount++] = p;
   }
 
-  removeEmpty(p) {
+  removeEmpty(p: number) {
     const i = this.emptyPos[p];
     const last = this.empty[--this.emptyCount];
     this.empty[i] = last;
@@ -245,7 +254,7 @@ class FastBoard {
 
   // Scans the group at p: returns its liberty count, leaves its members in
   // stack[0..groupSize) and one liberty in lastLib.
-  group(p) {
+  group(p: number) {
     const { start, list, stones, mark, libMark, stack } = this;
     const color = stones[p];
     const s = ++this.stamp;
@@ -272,7 +281,7 @@ class FastBoard {
 
   // Like group(), but stops as soon as it finds 2 liberties: returns 0, 1
   // or 2 (meaning "2 or more"), with one liberty in lastLib.
-  libs2(p) {
+  libs2(p: number) {
     const { start, list, stones, mark, libMark, stack } = this;
     const color = stones[p];
     const s = ++this.stamp;
@@ -298,7 +307,7 @@ class FastBoard {
     return libs;
   }
 
-  isOwnEye(p, c) {
+  isOwnEye(p: number, c: number) {
     for (let j = this.start[p]; j < this.start[p + 1]; j++) {
       if (this.stones[this.list[j]] !== c) return false;
     }
@@ -306,7 +315,7 @@ class FastBoard {
   }
 
   // Legal under the playout rules (no suicide, simple ko).
-  legal(p, c) {
+  legal(p: number, c: number) {
     const { start, list, stones } = this;
     if (stones[p] !== 0 || p === this.ko) return false;
     for (let j = start[p]; j < start[p + 1]; j++) {
@@ -324,7 +333,7 @@ class FastBoard {
   // Liberties the stone at p would have after playing there, capped at 2.
   // A capture always counts as 2. Scans the joined own groups only until
   // two liberties (other than p) are found.
-  libsAfter(p, c) {
+  libsAfter(p: number, c: number) {
     const { start, list, stones, lib2, mark, stack } = this;
     const opp = 3 - c;
     for (let j = start[p]; j < start[p + 1]; j++) {
@@ -355,7 +364,7 @@ class FastBoard {
   }
 
   // Plays a legal move and returns the number of stones captured.
-  play(p, c) {
+  play(p: number, c: number) {
     const { start, list, stones, stack } = this;
     const opp = 3 - c;
     this.removeEmpty(p);
@@ -401,7 +410,7 @@ class FastBoard {
 
 // Playout policy: capture or escape around the last move, else a random
 // legal move that neither fills an own eye nor puts itself in atari.
-const playoutMove = (b, c, last, rand) => {
+const playoutMove = (b: FastBoard, c: number, last: number, rand: () => number) => {
   if (last >= 0 && b.stones[last] !== 0) {
     // Capture the stone just played if it is in atari
     if (b.libs2(last) === 1) {
@@ -447,7 +456,7 @@ class Node {
   an: number;
   aw: number;
 
-  constructor(move, player, priorWins) {
+  constructor(move: number, player: number, priorWins: number) {
     this.move = move;
     this.player = player;
     this.n = PRIOR_N;
@@ -458,7 +467,7 @@ class Node {
 }
 
 // Prior wins out of PRIOR_N for a candidate move, from simple tactics.
-const priorFor = (b, p, c, last) => {
+const priorFor = (b: FastBoard, p: number, c: number, last: number) => {
   const opp = 3 - c;
   let prior = 5;
   for (let j = b.start[p]; j < b.start[p + 1]; j++) {
@@ -477,22 +486,26 @@ const priorFor = (b, p, c, last) => {
 // notice losing a stone, so the search can't be trusted to reject these.
 // Deeper in the tree self-atari stays allowed, so the search can still
 // consider sacrifices by either side.
-const expand = (node, b, c, last, rootFilter) => {
-  node.children = [];
+const expand = (node: Node, b: FastBoard, c: number, last: number, rootFilter: ((p: number) => boolean) | null) => {
+  const children: Node[] = [];
+  node.children = children;
   for (let k = 0; k < b.emptyCount; k++) {
     const p = b.empty[k];
     if (b.isOwnEye(p, c) || !b.legal(p, c)) continue;
     if (rootFilter && (b.libsAfter(p, c) < 2 || !rootFilter(p))) continue;
-    node.children.push(new Node(p, c, priorFor(b, p, c, last)));
+    children.push(new Node(p, c, priorFor(b, p, c, last)));
   }
-  if (node.children.length === 0) node.children.push(new Node(PASS, c, 5));
+  if (children.length === 0) children.push(new Node(PASS, c, 5));
 };
 
-const selectChild = (node) => {
+// The child to walk into: the best by UCT + RAVE. Only called on an
+// expanded node, which always has at least one child (a pass if nothing else).
+const selectChild = (node: Node): Node => {
   const logN = Math.log(node.n + 1);
-  let best = null;
+  const children = node.children as Node[];
+  let best = children[0];
   let bestV = -Infinity;
-  for (const ch of node.children) {
+  for (const ch of children) {
     const beta = Math.sqrt(RAVE_K / (3 * ch.n + RAVE_K));
     const v = (1 - beta) * (ch.w / ch.n) + beta * (ch.aw / ch.an) + UCT_C * Math.sqrt(logN / ch.n);
     if (v > bestV) { bestV = v; best = ch; }
@@ -501,11 +514,11 @@ const selectChild = (node) => {
 };
 
 // A playout's result for `player`: 1 for a win, 0.5 for a tie (winner 0).
-const resultFor = (player, winner) => (winner === player ? 1 : winner === 0 ? 0.5 : 0);
+const resultFor = (player: number, winner: number) => (winner === player ? 1 : winner === 0 ? 0.5 : 0);
 
 // RAVE: credits each child move that its player went on to play later in
 // the same playout (firstColor holds who played each tile first).
-const creditRave = (children, firstColor, winner) => {
+const creditRave = (children: Node[], firstColor: Int8Array, winner: number) => {
   for (const ch of children) {
     if (ch.move < 0 || firstColor[ch.move] !== ch.player) continue;
     ch.an++;
@@ -514,7 +527,10 @@ const creditRave = (children, firstColor, winner) => {
 };
 
 // Returns { move: tile id or null to pass, playouts, winRate }.
-export const chooseMctsMove = (tiles, stones, history, player, opponentPassed, options: { timeMs?: number, maxPlayouts?: number } = {}) => {
+export const chooseMctsMove = (
+  tiles: GraphTile[], stones: Stone[], history: Set<string>, player: Player, opponentPassed: boolean,
+  options: { timeMs?: number, maxPlayouts?: number } = {}
+): { move: number | null; playouts: number; winRate: number } => {
   const { timeMs = 1500, maxPlayouts = Infinity } = options;
 
   if (opponentPassed) {
@@ -540,15 +556,15 @@ export const chooseMctsMove = (tiles, stones, history, player, opponentPassed, o
   const seqMove = new Int32Array(4 * n + 16);
   const seqColor = new Int8Array(4 * n + 16);
   const firstColor = new Int8Array(n);
-  const path = [];
+  const path: Node[] = [];
   const rand = Math.random;
 
   // One iteration's walk: the moves played so far (seqMove and seqColor up
   // to len), whose turn it is, the last move and the consecutive passes.
-  const walk = { c: player, last: -1, len: 0, passes: 0 };
+  const walk = { c: player as number, last: -1, len: 0, passes: 0 };
 
   // Adds a move (or a pass) to the sequence and hands over the turn
-  const record = (move) => {
+  const record = (move: number) => {
     seqMove[walk.len] = move;
     seqColor[walk.len++] = walk.c;
     walk.last = move;
@@ -556,7 +572,7 @@ export const chooseMctsMove = (tiles, stones, history, player, opponentPassed, o
   };
 
   // Plays a move (or passes), counting consecutive passes
-  const step = (move) => {
+  const step = (move: number) => {
     if (move < 0) walk.passes++;
     else {
       walk.passes = 0;
@@ -579,7 +595,7 @@ export const chooseMctsMove = (tiles, stones, history, player, opponentPassed, o
 
   // Grows the tree by one node below a leaf visited often enough. A pass
   // here is not counted toward ending the playout.
-  const grow = (node) => {
+  const grow = (node: Node) => {
     if (walk.passes >= 2 || node.n <= PRIOR_N) return;
     expand(node, b, walk.c, walk.last, null);
     const child = selectChild(node);
@@ -595,7 +611,7 @@ export const chooseMctsMove = (tiles, stones, history, player, opponentPassed, o
   };
 
   // Updates the path (UCT) and sibling moves played later (RAVE)
-  const backup = (winner) => {
+  const backup = (winner: number) => {
     firstColor.fill(0);
     for (let d = walk.len - 1; d >= path.length - 1; d--) {
       if (seqMove[d] >= 0) firstColor[seqMove[d]] = seqColor[d];
@@ -628,9 +644,10 @@ export const chooseMctsMove = (tiles, stones, history, player, opponentPassed, o
     playouts++;
   }
 
-  let best = null;
-  for (const ch of root.children) {
-    if (!best || ch.n > best.n) best = ch;
+  const children = root.children as Node[];
+  let best = children[0];
+  for (const ch of children) {
+    if (ch.n > best.n) best = ch;
   }
   return {
     move: best.move === PASS ? null : best.move,

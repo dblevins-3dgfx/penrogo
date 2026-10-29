@@ -63,7 +63,8 @@ const PenroseTerritoryGame = () => {
 
   // Touch: Place confirms the preview a finger drag left on the board
   const placeTarget = () => {
-    if (target?.legal) dispatch(placeAction(target));
+    const a = target?.legal ? placeAction(target) : null;
+    if (a) dispatch(a);
     setHoveredPos(null);
   };
 

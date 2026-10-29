@@ -37,7 +37,7 @@ export class GoClassicEffects implements SkinEffects {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.jobs = [];
-    if (this.ctx) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    if (this.ctx && this.canvas) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.canvas = null;
     this.ctx = null;
   }
@@ -61,7 +61,7 @@ export class GoClassicEffects implements SkinEffects {
   frame = (now: number) => {
     const { ctx, canvas } = this;
     this.raf = 0;
-    if (!ctx) return;
+    if (!ctx || !canvas) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     this.jobs = this.jobs.filter(j => (j.kind === 'drop' ? this.drawDrop(j, now - j.start) : this.drawTake(j, now - j.start)));
     if (this.jobs.length) this.raf = requestAnimationFrame(this.frame);
@@ -71,6 +71,7 @@ export class GoClassicEffects implements SkinEffects {
   drawDrop(j: Job, t: number) {
     if (t >= DROP_MS) return false;
     const { ctx, canvas } = this;
+    if (!ctx || !canvas) return false;
     const k = t / DROP_MS;
     const ease = 1 - (1 - k) * (1 - k); // fast, then settling
     coverWithEmpty(ctx, j.verts, canvas.width, canvas.height);
@@ -83,6 +84,7 @@ export class GoClassicEffects implements SkinEffects {
     if (t < 0) return true;
     if (t >= LIFT_MS + SLIDE_MS) return false;
     const { ctx } = this;
+    if (!ctx) return false;
     const lift = Math.min(1, t / LIFT_MS);
     const s = Math.max(0, (t - LIFT_MS) / SLIDE_MS);
     const dx = (j.capturer === 1 ? -1 : 1) * SLIDE_DISTANCE * s * s;

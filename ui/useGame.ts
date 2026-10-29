@@ -6,6 +6,7 @@
 import { useEffect, useReducer } from 'react';
 import { gameReducer, initialGame, isComputerTurn } from '../game';
 import { COMPUTER_OPENING } from '../opening';
+import type { ThinkRequest } from '../ai-worker';
 
 const COMPUTER_OPENING_DELAY_MS = 400;
 
@@ -28,14 +29,15 @@ export const useGame = (thinkSeconds: number) => {
       const { move } = e.data;
       dispatch(move === null ? { type: 'pass' } : { type: 'claim', id: move });
     };
-    worker.postMessage({
+    const request: ThinkRequest = {
       neighbors: tiles.map(t => t.neighbors),
       stones,
       history: [...history],
       player: 2,
       opponentPassed: passes > 0,
       timeMs: thinkSeconds * 1000
-    });
+    };
+    worker.postMessage(request);
 
     return () => worker.terminate();
   }, [started, gameOver, computerTurn, tiles, stones, history, passes, thinkSeconds]);
