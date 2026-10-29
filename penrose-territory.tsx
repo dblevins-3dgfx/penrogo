@@ -20,7 +20,7 @@ import Preferences from './ui/Preferences';
 const isTouchDevice = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
 
 const PenroseTerritoryGame = () => {
-  const { skinId, setSkinId, thinkSeconds, setThinkSeconds, hintsOn, setHintsOn, atariOn, setAtariOn } = useSettings();
+  const { skinId, setSkinId, thinkSeconds, setThinkSeconds, hintsOn, setHintsOn, atariOn, setAtariOn, undoOn, setUndoOn } = useSettings();
   const [game, dispatch] = useGame(thinkSeconds);
   const [tileType, setTileType] = useState<TileType>('kite');
   const [rotation, setRotation] = useState(0);
@@ -104,6 +104,7 @@ const PenroseTerritoryGame = () => {
             target={target}
             onPlace={placeTarget}
             hintsOn={hintsOn}
+            undoOn={undoOn}
             onStart={start}
             onNewGame={newGame}
           />
@@ -136,6 +137,8 @@ const PenroseTerritoryGame = () => {
           onHintsOn={setHintsOn}
           atariOn={atariOn}
           onAtariOn={setAtariOn}
+          undoOn={undoOn}
+          onUndoOn={setUndoOn}
           onClose={() => setShowPrefs(false)}
         />
       )}

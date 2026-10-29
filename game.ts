@@ -35,6 +35,7 @@ export type GameState = {
   message: string; // the status line under the turn
   event: GameEvent | null;
   hint: Hint;
+  past: GameState[]; // the state before each move so far (with its own `past` emptied), for Undo
 };
 
 // A hint for the player to move: being looked for, or found (a tile, or
@@ -51,13 +52,15 @@ export type GameAction =
   | { type: 'thinking' }
   | { type: 'askHint' }
   | { type: 'hint'; move: number | null }
-  | { type: 'clearHint' };
+  | { type: 'clearHint' }
+  | { type: 'undo' };
 
 export const OPENING_HINT = 'Place the first tile anywhere: the board is built around it.';
 export const THINKING = 'Computer is thinking…';
 export const HINT_THINKING = 'Looking for a good move…';
 export const HINT_MOVE = 'Hint: the highlighted tile is a good move.';
 export const HINT_PASS = 'Hint: passing is a good choice here.';
+export const UNDONE = 'Move taken back.';
 
 // How long the search may think for a hint
 export const HINT_TIME_MS = 2000;
@@ -75,7 +78,8 @@ export const initialGame = (mode: Mode = 'ai'): GameState => ({
   gameOver: null,
   message: '',
   event: null,
-  hint: null
+  hint: null,
+  past: []
 });
 
 export const playerName = (mode: Mode, p: Player) => (mode === 'ai' && p === 2 ? 'Computer' : `Player ${p}`);
@@ -84,6 +88,12 @@ export const isComputerTurn = (g: GameState) => g.mode === 'ai' && g.currentPlay
 
 // Whether a person may act now (place, pass, rotate the opening tile).
 export const isHumanTurn = (g: GameState) => g.started && !g.gameOver && !isComputerTurn(g);
+
+// The state after a move, remembering the one before it for Undo
+const after = (g: GameState, next: Omit<GameState, 'past'>): GameState => ({
+  ...next,
+  past: [...g.past, { ...g, past: [] }]
+});
 
 // The opening tile: builds the board around it and makes it the mover's
 // first stone. Unchanged if the tile would stick out of the board.
@@ -94,7 +104,7 @@ const open = (g: GameState, cand: Candidate): GameState => {
   const { tiles, opening } = buildBoard(cand.type, verts, BOARD_W, BOARD_H, TILE_SIZE);
   const stones: Stone[] = Array.from({ length: tiles.length }, () => 0);
   stones[opening] = player;
-  return {
+  return after(g, {
     ...g,
     tiles,
     stones,
@@ -104,7 +114,7 @@ const open = (g: GameState, cand: Candidate): GameState => {
     currentPlayer: opponentOf(player),
     message: '',
     event: { kind: 'opening', tiles, verts, player }
-  };
+  });
 };
 
 // Claims tile `id` for the mover, if legal; otherwise the status line
@@ -116,7 +126,7 @@ const claim = (g: GameState, id: number): GameState => {
   if (r.ok === false) return { ...g, message: r.reason };
   const opp = opponentOf(player);
   const lost = g.stones.map((s, i) => (s === opp && r.stones[i] === 0 ? i : -1)).filter(i => i >= 0);
-  return {
+  return after(g, {
     ...g,
     stones: r.stones,
     history: new Set(g.history).add(positionKey(r.stones)),
@@ -129,7 +139,7 @@ const claim = (g: GameState, id: number): GameState => {
     currentPlayer: opp,
     event: { kind: 'claim', id, player, lost },
     hint: null
-  };
+  });
 };
 
 // The status line at the end of the game.
@@ -145,14 +155,37 @@ const pass = (g: GameState): GameState => {
   const player = g.currentPlayer;
   const name = playerName(g.mode, player);
   if (!g.tiles) {
-    return { ...g, currentPlayer: opponentOf(player), message: `${name} skipped the opening.` };
+    return after(g, { ...g, currentPlayer: opponentOf(player), message: `${name} skipped the opening.` });
   }
   const passes = g.passes + 1;
   if (passes >= 2) {
     const { score } = scoreArea(g.tiles, g.stones);
-    return { ...g, passes, gameOver: score, message: resultText(g.mode, score), hint: null };
+    return after(g, { ...g, passes, gameOver: score, message: resultText(g.mode, score), hint: null });
   }
-  return { ...g, passes, currentPlayer: opponentOf(player), message: `${name} passes.`, hint: null };
+  return after(g, { ...g, passes, currentPlayer: opponentOf(player), message: `${name} passes.`, hint: null });
+};
+
+// How many moves Undo takes back: the last one with 2 players; against the
+// computer, back to the last time it was the person's turn (their move and
+// the computer's reply, or just their move while the computer thinks).
+// 0 when there is nothing to take back.
+export const undoDepth = (g: GameState): number => {
+  if (!g.started) return 0;
+  if (g.mode === 'two') return g.past.length > 0 ? 1 : 0;
+  for (let i = g.past.length - 1; i >= 0; i--) {
+    if (!isComputerTurn(g.past[i])) return g.past.length - i;
+  }
+  return 0;
+};
+
+// Takes moves back (see undoDepth): the board, captures, turn, passes, the
+// positions seen for superko and the end of the game all return to what
+// they were. Any hint goes.
+const undo = (g: GameState): GameState => {
+  const depth = undoDepth(g);
+  if (depth === 0) return g;
+  const keep = g.past.length - depth;
+  return { ...g.past[keep], past: g.past.slice(0, keep), hint: null, event: null, message: UNDONE };
 };
 
 // Asking for a hint: only on a person's turn once the board exists, and
@@ -178,6 +211,8 @@ export const gameReducer = (g: GameState, a: GameAction): GameState => {
       return { ...initialGame(g.mode), started: true, message: OPENING_HINT };
     case 'reset':
       return initialGame(g.mode);
+    case 'undo':
+      return undo(g);
   }
   if (!g.started || g.gameOver) return g;
   switch (a.type) {

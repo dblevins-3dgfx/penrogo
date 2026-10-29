@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  HINT_MOVE, HINT_PASS, atariText, ataris, HINT_THINKING, OPENING_HINT, THINKING, gameReducer, initialGame, isComputerTurn, isHumanTurn,
+  HINT_MOVE, HINT_PASS, UNDONE, atariText, ataris, undoDepth, HINT_THINKING, OPENING_HINT, THINKING, gameReducer, initialGame, isComputerTurn, isHumanTurn,
   placeAction, playerName, resultText, shownScore, targetAt, turnText, type GameAction, type GameState
 } from './game';
 import { BOARD_W, COMPUTER_OPENING, candidateVertices } from './opening';
@@ -343,4 +343,109 @@ test('the atari warning says whose tiles are in atari, and how many', () => {
   assert.equal(atariText('ai', [g2]), "The computer's tile is in atari.");
   assert.equal(atariText('ai', [g1, g1b, g2]), "Your 3 tiles are in atari; the computer's tile is in atari.");
   assert.equal(atariText('two', [g1, g2]), "Player 1's 2 tiles are in atari; Player 2's tile is in atari.");
+});
+
+// Spec 5, Undo
+// Tiles where moves can be played one after another without touching
+const quietTiles = (g: GameState, n: number) => {
+  const ids: number[] = [];
+  const stones = [...g.stones];
+  for (const [i, t] of tilesOf(g).entries()) {
+    if (ids.length === n) break;
+    if (stones[i] === 0 && t.neighbors.length === 4 && t.neighbors.every(m => stones[m] === 0)) {
+      ids.push(i);
+      stones[i] = 1;
+      t.neighbors.forEach(m => { stones[m] = 1; }); // keep the next one apart
+    }
+  }
+  return ids;
+};
+// The parts of the state Undo restores
+const position = (g: GameState) => ({
+  tiles: g.tiles, stones: g.stones, history: [...g.history], currentPlayer: g.currentPlayer, passes: g.passes,
+  captured: g.captured, lastMove: g.lastMove, gameOver: g.gameOver
+});
+
+test('with 2 players, undo takes back the last move: board, turn, passes and history', () => {
+  const g = opened();
+  const [a, b] = quietTiles(g, 2);
+  const one = run(g, { type: 'claim', id: a });
+  const two = run(one, { type: 'claim', id: b });
+  assert.equal(undoDepth(two), 1);
+  const back = run(two, { type: 'undo' });
+  assert.deepEqual(position(back), position(one));
+  assert.equal(back.message, UNDONE);
+  assert.deepEqual(position(run(back, { type: 'undo' })), position(g), 'and the one before');
+  const passed = run(g, { type: 'pass' });
+  assert.deepEqual(position(run(passed, { type: 'undo' })), position(g), 'a pass');
+});
+
+test('undo restores captures', () => {
+  // Surround Player 1's opening stone with Player 2 until it is captured
+  let g = opened();
+  const o = lastOf(g);
+  const ring = tilesOf(g)[o].neighbors;
+  const far = quietTiles(g, ring.length).filter(i => !ring.includes(i));
+  ring.forEach((n, k) => {
+    g = run(g, { type: 'claim', id: n });
+    if (k < ring.length - 1) g = run(g, { type: 'claim', id: far[k] });
+  });
+  assert.equal(g.stones[o], 0, 'captured');
+  assert.equal(g.captured[2], 1);
+  const back = run(g, { type: 'undo' });
+  assert.equal(back.stones[o], 1);
+  assert.equal(back.captured[2], 0);
+  assert.equal(back.currentPlayer, 2);
+});
+
+test('undo can take back the opening, and the move that ended the game', () => {
+  const g = opened();
+  const back = run(g, { type: 'undo' });
+  assert.equal(back.tiles, null);
+  assert.equal(back.currentPlayer, 1);
+  const over = run(g, { type: 'pass' }, { type: 'pass' });
+  assert.ok(over.gameOver);
+  const resumed = run(over, { type: 'undo' });
+  assert.equal(resumed.gameOver, null);
+  assert.equal(resumed.passes, 1);
+  assert.equal(resumed.currentPlayer, 1);
+});
+
+test('against the computer, undo takes back the person\'s move and the computer\'s reply', () => {
+  const g = opened('ai');
+  // The person opened; the computer replies, the person plays, the computer replies
+  const [a, b, c] = quietTiles(g, 3);
+  const reply = run(g, { type: 'claim', id: a });
+  assert.equal(reply.currentPlayer, 1);
+  const mine = run(reply, { type: 'claim', id: b });
+  const theirs = run(mine, { type: 'claim', id: c });
+  assert.equal(undoDepth(theirs), 2);
+  assert.deepEqual(position(run(theirs, { type: 'undo' })), position(reply), 'both moves go');
+  // While the computer is thinking, just the person's move
+  const thinking = run(mine, { type: 'thinking' });
+  assert.equal(undoDepth(thinking), 1);
+  assert.deepEqual(position(run(thinking, { type: 'undo' })), position(reply));
+});
+
+test('there is nothing to undo before a move, or before the game starts', () => {
+  assert.equal(undoDepth(initialGame()), 0);
+  assert.equal(undoDepth(started()), 0);
+  const s = started();
+  assert.equal(run(s, { type: 'undo' }), s);
+  // Against the computer, its opening alone can't be taken back once the
+  // person skipped: back to before the skip
+  const skipped = run(started('ai'), { type: 'pass' }, { type: 'open', cand: COMPUTER_OPENING });
+  assert.equal(undoDepth(skipped), 2);
+  const back = run(skipped, { type: 'undo' });
+  assert.equal(back.tiles, null);
+  assert.equal(back.currentPlayer, 1);
+});
+
+test('undo clears a hint, and New Game forgets the moves', () => {
+  const g = opened();
+  const [a] = quietTiles(g, 1);
+  const moved = run(g, { type: 'claim', id: a });
+  const hinted = run(moved, { type: 'askHint' });
+  assert.equal(run(hinted, { type: 'undo' }).hint, null);
+  assert.equal(undoDepth(run(moved, { type: 'reset' }, { type: 'start' })), 0);
 });
