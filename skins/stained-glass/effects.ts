@@ -12,7 +12,7 @@
 // The loop runs while the last move is shown (capped at PERSISTENT_FPS when
 // nothing else moves) or while a sunbeam or falling glass is in progress.
 import type { SkinEffects, Point, Player, Owner } from '../types';
-import { centroidOf, tracePolygon } from '../../board-geometry';
+import { centroidOf, tracePolygon, BOARD_H, BOARD_W } from '../../board-geometry';
 import { drawSparkle, mix, rgb } from '../canvas-utils';
 import { GLASS, LIT, drawInnerGlow, paneRadius } from './glass';
 
@@ -40,6 +40,9 @@ type Break = { start: number; impact: Point; rim: Point[]; shards: Shard[] };
 export class StainedGlassEffects implements SkinEffects {
   canvas: HTMLCanvasElement | null = null;
   ctx: CanvasRenderingContext2D | null = null;
+  // The board's size in board units (see setBoardSize); the sweep crosses it
+  boardW = BOARD_W;
+  boardH = BOARD_H;
   raf = 0;
   lastFrame = 0;
   timer = 0;
@@ -47,6 +50,11 @@ export class StainedGlassEffects implements SkinEffects {
   lastMove: Point[] | null = null;
   beamStart: number | null = null;
   breaks: Break[] = [];
+
+  setBoardSize(w: number, h: number) {
+    this.boardW = w;
+    this.boardH = h;
+  }
 
   attach(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -173,7 +181,7 @@ export class StainedGlassEffects implements SkinEffects {
     if (k >= 1) return false;
     const { ctx, canvas } = this;
     if (!ctx || !canvas) return false;
-    const span = canvas.width * DIR.x + canvas.height * DIR.y;
+    const span = this.boardW * DIR.x + this.boardH * DIR.y;
     const pos = -BEAM_WIDTH + k * (span + 2 * BEAM_WIDTH);
     const fade = Math.sin(k * Math.PI); // swell in, fade out
     const x0 = DIR.x * (pos - BEAM_WIDTH), y0 = DIR.y * (pos - BEAM_WIDTH);

@@ -10,8 +10,8 @@
 // The loop runs while the last move is shown (capped at PERSISTENT_FPS when
 // nothing else moves) or while a gust or glint is in progress.
 import type { SkinEffects, Point, Player, Owner } from '../types';
-import { tracePolygon, centroidOf } from '../../board-geometry';
-import { isKite, drawLastMoveMarker } from './pieces';
+import { tracePolygon, centroidOf, isKite, BOARD_H, BOARD_W } from '../../board-geometry';
+import { drawLastMoveMarker } from './pieces';
 
 const PERSISTENT_FPS = 30;
 const GUST_EVERY_MS: [number, number] = [4000, 7000];
@@ -31,6 +31,9 @@ type Piece = { verts: Point[]; c: Point; r: number; player: Player };
 export class KitesAndDartsEffects implements SkinEffects {
   canvas: HTMLCanvasElement | null = null;
   ctx: CanvasRenderingContext2D | null = null;
+  // The board's size in board units (see setBoardSize); the sweep crosses it
+  boardW = BOARD_W;
+  boardH = BOARD_H;
   raf = 0;
   lastFrame = 0;
   timers: number[] = [];
@@ -39,6 +42,11 @@ export class KitesAndDartsEffects implements SkinEffects {
   lastMove: Point[] | null = null;
   gust: { start: number } | null = null;
   glints: { piece: Piece; start: number }[] = [];
+
+  setBoardSize(w: number, h: number) {
+    this.boardW = w;
+    this.boardH = h;
+  }
 
   attach(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -129,7 +137,7 @@ export class KitesAndDartsEffects implements SkinEffects {
     const { ctx, canvas } = this;
     if (!ctx || !canvas) return false;
     // Position of the front along the wind axis, starting off the board
-    const span = canvas.width * Math.abs(WIND.x) + canvas.height * Math.abs(WIND.y);
+    const span = this.boardW * Math.abs(WIND.x) + this.boardH * Math.abs(WIND.y);
     const front = -GUST_WIDTH + (t / 1000) * GUST_SPEED;
     if (front > span + GUST_WIDTH) return false;
 

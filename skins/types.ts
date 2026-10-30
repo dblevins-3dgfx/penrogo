@@ -32,14 +32,20 @@ export interface PlayerStyle {
   name: string; // color word for the rules text, e.g. 'blue'
 }
 
-// Optional animations, drawn on a transparent overlay canvas (800x600, same
-// coordinates as the board) above the board canvas. The game creates one
-// instance per skin selection and calls these as play happens; every event
-// method is optional, so a skin implements only what it animates.
+// Optional animations, drawn on a transparent overlay canvas above the board
+// canvas, in the same board units as the canvas hooks (the overlay is scaled
+// the same way). The game creates one instance per skin selection and calls
+// these as play happens; every event method is optional, so a skin
+// implements only what it animates.
 export interface SkinEffects {
   // Start drawing on the overlay / stop and clear everything
   attach(canvas: HTMLCanvasElement): void;
   detach(): void;
+
+  // The board's size in board units (800 x 600 for a full board, smaller
+  // for the smaller sizes), before attach and again if it changes. Use it,
+  // not the canvas's size, for anything that should span the board.
+  setBoardSize?(w: number, h: number): void;
 
   // The current board: tiles (with verts) and who holds each one
   setBoard?(tiles: { verts: Point[] }[] | null, stones: Owner[]): void;
@@ -65,7 +71,10 @@ export interface Skin {
   // Player colors in the page text; default blue (1) and red (2)
   players?: { 1: PlayerStyle; 2: PlayerStyle };
 
-  // Canvas hooks, all in 800x600 board coordinates
+  // Canvas hooks, all in board units: the board is a w x h region of the
+  // tiling (800 x 600 for a full board, as small as 448 x 336), drawn scaled
+  // up to fill the 800 x 600 canvas. Tiles always have long edges of 60.
+  // drawBackground gets the board's w and h.
   drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number): void;
   drawTile(ctx: CanvasRenderingContext2D, verts: Point[], state: TileState): void;
   // `player` is who holds the last move's tile

@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  BOARD_H, BOARD_W, COMPUTER_OPENING, PHI, TILE_SIZE, candidateVertices, centroidOf, dartVertices, isOutsidePlayfield, kiteVertices, tileAtPoint
+  BOARD_H, BOARD_W, COMPUTER_OPENING, PHI, TILE_SIZE, candidateVertices, centroidOf, dartVertices, isKite, isOutsidePlayfield, kiteVertices, tileAtPoint
 } from './board-geometry';
+import { buildBoard } from './penrose-board';
 import type { Point } from './types';
 
 const L = TILE_SIZE;
@@ -98,4 +99,20 @@ test('centroidOf is the average of the corners, inside a kite and a dart', () =>
     assert.ok(near(c.x, 300) && near(c.y, 200), 'a placed tile is centered on its centroid');
     assert.equal(tileAtPoint([{ verts }], c.x, c.y), 0, 'and the centroid is inside it');
   }
+});
+
+// Spec 7b: a skin can tell a kite from a dart by its shape, at any size
+test('isKite tells kites from darts by shape, at any rotation and scale', () => {
+  for (const rotation of [0, 36, 108, 252]) {
+    assert.equal(isKite(kiteVertices(300, 200, rotation)), true, `kite at ${rotation}°`);
+    assert.equal(isKite(dartVertices(300, 200, rotation)), false, `dart at ${rotation}°`);
+  }
+  const scaled = (verts: Point[], k: number) => verts.map(v => ({ x: v.x * k, y: v.y * k }));
+  for (const k of [0.25, 1.786, 4]) {
+    assert.equal(isKite(scaled(kiteVertices(0, 0, 72), k)), true, `kite scaled by ${k}`);
+    assert.equal(isKite(scaled(dartVertices(0, 0, 72), k)), false, `dart scaled by ${k}`);
+  }
+  // Every tile of a generated board
+  const { tiles } = buildBoard('kite', kiteVertices(400, 300, 0), BOARD_W, BOARD_H, TILE_SIZE);
+  assert.ok(tiles.every(t => isKite(t.verts) === (t.type === 'kite')));
 });

@@ -1,15 +1,12 @@
 // How kites and darts are drawn, shared by the skin (static board) and its
 // effects (animation overlay).
 //
-// Tiles arrive as corner points only, so the kind is read from the shape:
-// a kite's axis (vertex 0 to 2) is a long edge (60 px), a dart's is short
-// (about 37 px). Vertex order: kite [O tail, B, C nose, D]; dart [M point,
-// N, A' notch, N'].
+// Tiles arrive as corner points only, so the kind is read from the shape
+// (isKite in board-geometry.ts). Vertex order: kite [O tail, B, C nose, D];
+// dart [M point, N, A' notch, N'].
 import type { Point, Player } from '../types';
-import { tracePolygon, centroidOf } from '../../board-geometry';
+import { isKite, tracePolygon, centroidOf } from '../../board-geometry';
 import { mix, rgb } from '../canvas-utils';
-
-export const isKite = (v: Point[]) => Math.hypot(v[2].x - v[0].x, v[2].y - v[0].y) > 48;
 
 export const lerp = (a: Point, b: Point, t: number): Point => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
 
