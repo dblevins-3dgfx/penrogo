@@ -9,7 +9,7 @@ import type { Player, Stone, Tile } from '../types';
 
 // The part of the board shown, in board coordinates (4:3, around the centre)
 const VIEW = { x: 250, y: 187.5, w: 300, h: 225 };
-// The canvas's drawing size; it is scaled to the card's width
+// The canvas's drawing size; it is scaled to the chooser's width
 const WIDTH = 320;
 const HEIGHT = 240;
 
