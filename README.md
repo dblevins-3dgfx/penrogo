@@ -58,7 +58,8 @@ It takes about 15 minutes, so it isn't part of CI: run it after changing the rul
   - `Header.tsx`, `Scoreboard.tsx`, `Controls.tsx`: the pieces of the page
   - `Dialog.tsx`, `HowToPlay.tsx`, `Preferences.tsx`: the dialogs (a shared overlay, the rules, and the settings: skin, Hints, Atari warnings and Undo)
   - `SkinPreview.tsx`: a skin's preview picture for the chooser in Preferences, drawn with its own hooks
-  - `BoardCanvas.tsx`: the board canvas and the skin's effects overlay, drawing and pointer, wheel and right-click input
+  - `BoardCanvas.tsx`: the board canvas and the skin's effects overlay, and pointer, touch, wheel and right-click input
+  - `board-drawing.ts`: drawing the board with the skin's hooks, scaled to the canvas, plus the atari outlines and the hint on top
 - `prefs.ts`: the saved settings' keys, choices and how a saved value is read back, including `SWITCHES`, the table of Preferences on/off switches (a new switch is a row there plus the code that uses it, which reads `switches[id]` in `penrose-territory.tsx`)
 - `game.ts`: the game's state and moves as a pure reducer (opening, claiming, passing, the end, hints, undo), plus the status line and the scoreboard
 - `targeting.ts`: what the pointer or a finger is over, what a click, Place or a double tap places, and what counts as a tap and a double tap on a touch screen
