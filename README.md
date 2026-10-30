@@ -53,7 +53,8 @@ One-time setup: repository **Settings → Pages → Build and deployment → Sou
   - `SkinPreview.tsx`: a skin's preview picture for the chooser in Preferences, drawn with its own hooks
   - `BoardCanvas.tsx`: the board canvas and the skin's effects overlay, drawing and pointer, wheel and right-click input
 - `prefs.ts`: the saved settings' keys, choices and how a saved value is read back, including `SWITCHES`, the table of Preferences on/off switches (a new switch is a row there plus the code that uses it, which reads `switches[id]` in `penrose-territory.tsx`)
-- `game.ts`: the game's state and moves as a pure reducer (opening, claiming, passing, the end), plus the status line, the scoreboard and what the pointer is over
+- `game.ts`: the game's state and moves as a pure reducer (opening, claiming, passing, the end, hints, undo), plus the status line and the scoreboard
+- `targeting.ts`: what the pointer or a finger is over, what a click, Place or a double tap places, and what counts as a tap and a double tap on a touch screen
 - `rules.ts`: Go rules on the tile graph (groups, liberties, legal moves, captures, area scoring)
 - `mcts.ts`: the computer player (Monte Carlo tree search), with its own fast copy of the rules for playouts; `mcts.test.ts` plays random games to check the copy agrees with `rules.ts`
 - `test-boards.ts`: small grid boards for the rules and search tests

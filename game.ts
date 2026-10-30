@@ -6,10 +6,10 @@
 import { buildBoard } from './penrose-board';
 import { groupsInAtari, opponentOf, playMove, positionKey, scoreArea, type AtariGroup } from './rules';
 import {
-  DEFAULT_BOARD_SIZE, TILE_SIZE, boardSize, candidateVertices, isOutsidePlayfield, tileAtPoint, type BoardSizeId, type Candidate
+  DEFAULT_BOARD_SIZE, TILE_SIZE, boardSize, candidateVertices, isOutsidePlayfield, type BoardSizeId, type Candidate
 } from './board-geometry';
 
-import type { Player, Point, Score, Stone, Tile, TileType } from './types';
+import type { Player, Point, Score, Stone, Tile } from './types';
 
 export type { AtariGroup, Player, Score, Stone, Tile };
 // 'ai' plays against the computer (as Player 2); 'two' is two people.
@@ -263,35 +263,4 @@ export const turnText = (g: GameState) => {
   if (!g.started) return 'Press Start';
   if (g.gameOver) return 'Game Over';
   return `${playerName(g.mode, g.currentPlayer)}'s Turn`;
-};
-
-// What a point on the board (in board units: see BOARD_SIZES) is over, for
-// the preview and for placing: the opening tile (of the chosen type and
-// rotation, centered on the point) and whether it fits, or the board tile
-// under it and whether claiming it is legal. Null when it isn't a person's turn or the point is off every tile.
-export type Target =
-  | { kind: 'opening'; cand: Candidate; verts: Point[]; legal: boolean }
-  | { kind: 'tile'; id: number; verts: Point[]; legal: boolean };
-
-export const targetAt = (g: GameState, pos: Point | null, type: TileType, rotation: number): Target | null => {
-  if (!pos || !isHumanTurn(g)) return null;
-  if (!g.tiles) {
-    const cand = { type, x: pos.x, y: pos.y, rotation };
-    const verts = candidateVertices(cand);
-    const { w, h } = boardSize(g.size);
-    return { kind: 'opening', cand, verts, legal: !isOutsidePlayfield(verts, w, h) };
-  }
-  const id = tileAtPoint(g.tiles, pos.x, pos.y);
-  if (id < 0) return null;
-  const r = playMove(g.tiles, g.stones, g.history, id, g.currentPlayer);
-  return { kind: 'tile', id, verts: g.tiles[id].verts, legal: r.ok };
-};
-
-// The action placing on a target: the opening, or claiming the tile. Null
-// for an illegal opening (it is not placed). An illegal tile is still
-// claimed, so the status line says why not.
-export const placeAction = (t: Target | null): GameAction | null => {
-  if (!t) return null;
-  if (t.kind === 'opening') return t.legal ? { type: 'open', cand: t.cand } : null;
-  return { type: 'claim', id: t.id };
 };
