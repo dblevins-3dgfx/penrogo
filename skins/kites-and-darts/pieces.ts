@@ -6,7 +6,8 @@
 // (about 37 px). Vertex order: kite [O tail, B, C nose, D]; dart [M point,
 // N, A' notch, N'].
 import type { Point, Player } from '../types';
-import { tracePolygon, centroidOf, mix, rgb } from '../canvas-utils';
+import { tracePolygon, centroidOf } from '../../board-geometry';
+import { mix, rgb } from '../canvas-utils';
 
 export const isKite = (v: Point[]) => Math.hypot(v[2].x - v[0].x, v[2].y - v[0].y) > 48;
 

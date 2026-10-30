@@ -5,8 +5,8 @@
 // board exists) and New Game.
 import { Lightbulb, Play, RotateCcw, RotateCw, SkipForward, Undo2 } from 'lucide-react';
 import { isHumanTurn, undoDepth, type GameAction, type GameState, type Target } from '../game';
-import { BOARD_SIZES, type BoardSizeId, type TileType } from '../opening';
-import { LEVELS, type LevelId } from '../prefs';
+import { BOARD_SIZES, type BoardSizeId, type TileType } from '../board-geometry';
+import { LEVELS, type LevelId } from '../levels';
 
 type ControlsProps = {
   game: GameState;

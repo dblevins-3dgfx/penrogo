@@ -4,7 +4,8 @@
 // construction lines; the last move is dimensioned. Drawing is in
 // drafting.ts, animations (pencil draw-in, erasing captures) in effects.ts.
 import type { Skin } from '../types';
-import { tracePolygon, drawIllegalOutline } from '../canvas-utils';
+import { tracePolygon } from '../../board-geometry';
+import { drawIllegalOutline } from '../canvas-utils';
 import { drawPaper, drawEmptyTile, drawStone, drawHatch, drawDimensions, INK } from './drafting';
 import { BlueprintEffects } from './effects';
 

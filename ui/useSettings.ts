@@ -5,9 +5,10 @@ import { useState } from 'react';
 import { SKINS, DEFAULT_SKIN } from '../skins';
 import {
   BOARD_STORAGE_KEY, LEVEL_STORAGE_KEY, OLD_THINK_STORAGE_KEY, SKIN_STORAGE_KEY,
-  formatSwitch, parseBoardSize, parseLevel, parseSkinId, readSwitches, switchKey, type LevelId, type SwitchId
+  formatSwitch, parseBoardSize, parseLevel, parseSkinId, readSwitches, switchKey, type SwitchId
 } from '../prefs';
-import type { BoardSizeId } from '../opening';
+import type { LevelId } from '../levels';
+import type { BoardSizeId } from '../board-geometry';
 
 const read = (key: string): string | null => {
   try {

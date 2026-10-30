@@ -10,7 +10,7 @@
 // The loop runs while the last move is shown (capped at PERSISTENT_FPS when
 // nothing else moves) or while a gust or glint is in progress.
 import type { SkinEffects, Point, Player, Owner } from '../types';
-import { tracePolygon, centroidOf } from '../canvas-utils';
+import { tracePolygon, centroidOf } from '../../board-geometry';
 import { isKite, drawLastMoveMarker } from './pieces';
 
 const PERSISTENT_FPS = 30;

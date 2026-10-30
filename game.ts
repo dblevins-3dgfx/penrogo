@@ -6,9 +6,8 @@
 import { buildBoard } from './penrose-board';
 import { groupsInAtari, opponentOf, playMove, positionKey, scoreArea, type AtariGroup } from './rules';
 import {
-  DEFAULT_BOARD_SIZE, TILE_SIZE, boardSize, candidateVertices, isOutsidePlayfield, tileAtPoint,
-  type BoardSizeId, type Candidate
-} from './opening';
+  DEFAULT_BOARD_SIZE, TILE_SIZE, boardSize, candidateVertices, isOutsidePlayfield, tileAtPoint, type BoardSizeId, type Candidate
+} from './board-geometry';
 
 import type { Player, Point, Score, Stone, Tile, TileType } from './types';
 

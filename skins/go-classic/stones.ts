@@ -3,7 +3,7 @@
 // (black, Player 1) and clamshell (white, Player 2), shaped to their tiles
 // with rounded corners so the kite and dart geometry still reads.
 import type { Point, Player, Owner } from '../types';
-import { centroidOf } from '../canvas-utils';
+import { centroidOf } from '../../board-geometry';
 
 const INK = 'rgba(43, 29, 16, 0.75)';
 const STONE_INSET = 0.84;

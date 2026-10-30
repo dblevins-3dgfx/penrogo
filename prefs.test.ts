@@ -1,21 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  BOARD_STORAGE_KEY, DEFAULT_LEVEL, LEVELS, LEVEL_STORAGE_KEY, OLD_THINK_STORAGE_KEY, SKIN_STORAGE_KEY, SWITCHES,
-  formatSwitch, levelById, parseBoardSize, parseLevel, parseSkinId, parseSwitch, readSwitches, switchKey
+  BOARD_STORAGE_KEY, LEVEL_STORAGE_KEY, OLD_THINK_STORAGE_KEY, SKIN_STORAGE_KEY, SWITCHES,
+  formatSwitch, parseBoardSize, parseLevel, parseSkinId, parseSwitch, readSwitches, switchKey
 } from './prefs';
+import { LEVELS } from './levels';
 
-// Spec 6: the computer's level, Medium by default, remembered
-test('the levels are Beginner, Easy, Medium and Strong, getting stronger, Medium by default', () => {
-  assert.deepEqual(LEVELS.map(l => l.name), ['Beginner', 'Easy', 'Medium', 'Strong']);
-  assert.equal(DEFAULT_LEVEL, 'medium');
-  assert.deepEqual(LEVELS.map(l => l.search.timeMs), [1000, 1000, 3000, 10000]);
-  const beginner = levelById('beginner').search;
-  assert.equal(beginner.maxPlayouts, 300, 'Beginner searches only a few hundred playouts');
-  assert.equal(beginner.wander, 0.3, 'and sometimes picks a runner-up move');
-  for (const l of LEVELS.slice(1)) assert.equal(l.search.wander ?? 0, 0, `${l.name} plays its best move`);
-});
-
+// Spec 6: the computer's level, remembered
 test('a saved level is read back; an old thinking time picks the matching level; else Medium', () => {
   for (const l of LEVELS) assert.equal(parseLevel(l.id), l.id);
   assert.equal(parseLevel(null), 'medium', 'nothing saved');

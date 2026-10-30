@@ -1,20 +1,10 @@
-// Drawing helpers any skin may use. Points are { x, y } in the 800x600
-// board coordinates; colors for mix() and rgb() are [r, g, b] arrays.
+// Drawing helpers any skin may use; colors for mix() and rgb() are
+// [r, g, b] arrays. A tile's centroid and outline path (centroidOf,
+// tracePolygon) are in board-geometry.ts, shared with the board.
+import { tracePolygon } from '../board-geometry';
 import type { Point } from './types';
 
 export type RGB = number[];
-
-export const tracePolygon = (ctx: CanvasRenderingContext2D, verts: Point[]) => {
-  ctx.beginPath();
-  ctx.moveTo(verts[0].x, verts[0].y);
-  verts.forEach(v => ctx.lineTo(v.x, v.y));
-  ctx.closePath();
-};
-
-export const centroidOf = (verts: Point[]): Point => ({
-  x: verts.reduce((s, v) => s + v.x, 0) / verts.length,
-  y: verts.reduce((s, v) => s + v.y, 0) / verts.length
-});
 
 // Dashed red outline for a tile that can't be claimed
 export const drawIllegalOutline = (ctx: CanvasRenderingContext2D, verts: Point[]) => {

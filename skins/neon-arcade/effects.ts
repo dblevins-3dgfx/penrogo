@@ -10,7 +10,7 @@
 // The loop runs while the last move is shown (capped at PERSISTENT_FPS when
 // nothing else moves) or while any other effect is in progress.
 import type { SkinEffects, Point, Player, Owner } from '../types';
-import { centroidOf } from '../canvas-utils';
+import { centroidOf } from '../../board-geometry';
 import { NEON, drawTube, drawSpark, coverWithEmpty } from './neon';
 
 const PERSISTENT_FPS = 30;

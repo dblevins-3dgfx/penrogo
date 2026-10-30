@@ -4,8 +4,7 @@ import {
   HINT_MOVE, HINT_PASS, UNDONE, atariText, ataris, undoDepth, HINT_THINKING, OPENING_HINT, THINKING, gameReducer, initialGame, isComputerTurn, isHumanTurn,
   placeAction, playerName, resultText, shownScore, targetAt, turnText, type GameAction, type GameState
 } from './game';
-import { BOARD_W, COMPUTER_OPENING, boardSize, candidateVertices, computerOpening } from './opening';
-import { centroidOf } from './skins/canvas-utils';
+import { BOARD_W, COMPUTER_OPENING, boardSize, candidateVertices, centroidOf, computerOpening } from './board-geometry';
 import { positionKey } from './rules';
 
 const run = (g: GameState, ...actions: GameAction[]) => actions.reduce(gameReducer, g);

@@ -1,6 +1,8 @@
-// The playfield and the opening tile: where a kite or dart placed by the
-// player lies, whether it fits on the board, and which board tile a point
-// is over.
+// The board's geometry: the tile shapes, the canvas and the board sizes,
+// the opening tile (where a kite or dart placed by the player lies and
+// whether it fits on the board), which board tile a point is over, and
+// small helpers for a tile's centroid and outline. Turning the opening tile
+// is in rotation.ts.
 
 import type { Point, TileType } from './types';
 
@@ -26,18 +28,12 @@ export const DEFAULT_BOARD_SIZE: BoardSizeId = 'full';
 export const boardSize = (id: BoardSizeId): BoardSize =>
   BOARD_SIZES.find(s => s.id === id) ?? BOARD_SIZES[BOARD_SIZES.length - 1];
 
-// Rotation of the opening tile, in degrees, turns in steps of 36.
-export const ROTATION_STEP = 36;
 
 export type { Point, TileType };
 
 // An opening tile as the player places it: its centroid and rotation.
 export type Candidate = { type: TileType; x: number; y: number; rotation: number };
 
-// The rotation one step clockwise (dir 1) or counter-clockwise (dir -1),
-// kept within 0 to 359.
-export const rotateStep = (rotation: number, dir: 1 | -1): number =>
-  (rotation + dir * ROTATION_STEP + 360) % 360;
 
 // A tile's vertices around its tip at the origin, rotated so its axis
 // points along `rotation`, then moved so its centroid is at (x, y). The
@@ -108,30 +104,17 @@ const pointInTriangle = (px: number, py: number, tri: Point[]) => {
 export const tileAtPoint = (tiles: { verts: Point[] }[], x: number, y: number): number =>
   tiles.findIndex(t => toTriangles(t.verts).some(tri => pointInTriangle(x, y, tri)));
 
-// Scroll-wheel rotation of the opening tile: up turns it clockwise. A mouse
-// wheel notch arrives as one large delta and turns one step. A trackpad
-// swipe arrives as a stream of small deltas; it turns one step for every
-// TRACKPAD_STEP pixels scrolled, so a longer swipe turns further. The page
-// drops any leftover partial step after a short pause (SWIPE_END_MS).
-export const WHEEL_NOTCH = 50;
-export const TRACKPAD_STEP = 50; // lower = faster trackpad rotation
-export const SWIPE_END_MS = 150;
+// The average of a tile's corners: inside a kite, and inside a dart short of
+// its notch.
+export const centroidOf = (verts: Point[]): Point => ({
+  x: verts.reduce((s, v) => s + v.x, 0) / verts.length,
+  y: verts.reduce((s, v) => s + v.y, 0) / verts.length
+});
 
-// A wheel event's vertical scroll in pixels, whatever unit it came in
-// (deltaMode 1 is lines, 2 is pages).
-export const wheelPixels = (deltaY: number, deltaMode: number): number =>
-  deltaMode === 1 ? deltaY * 16 : deltaMode === 2 ? deltaY * 400 : deltaY;
-
-// The steps one wheel event turns (1 clockwise, -1 counter-clockwise), and
-// the swipe's partial total carried to the next event.
-export const wheelTurns = (total: number, dy: number): { turns: (1 | -1)[]; total: number } => {
-  const dir = (d: number): 1 | -1 => (d < 0 ? 1 : -1);
-  if (Math.abs(dy) >= WHEEL_NOTCH) return { turns: [dir(dy)], total };
-  const turns: (1 | -1)[] = [];
-  let t = total + dy;
-  while (Math.abs(t) >= TRACKPAD_STEP) {
-    turns.push(dir(t));
-    t -= Math.sign(t) * TRACKPAD_STEP;
-  }
-  return { turns, total: t };
+// Starts a canvas path around a tile's corners, ready to fill or stroke.
+export const tracePolygon = (ctx: CanvasRenderingContext2D, verts: Point[]) => {
+  ctx.beginPath();
+  ctx.moveTo(verts[0].x, verts[0].y);
+  verts.forEach(v => ctx.lineTo(v.x, v.y));
+  ctx.closePath();
 };

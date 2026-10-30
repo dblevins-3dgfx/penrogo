@@ -4,7 +4,8 @@
 // to read. Drawing is in neon.ts, animations (flicker on, blink out,
 // breathing last move, CRT roll bar) in effects.ts.
 import type { Skin } from '../types';
-import { centroidOf, drawIllegalOutline } from '../canvas-utils';
+import { centroidOf } from '../../board-geometry';
+import { drawIllegalOutline } from '../canvas-utils';
 import { NEON, drawScreen, drawEmptyTile, drawTube, drawSpark } from './neon';
 import { NeonArcadeEffects } from './effects';
 

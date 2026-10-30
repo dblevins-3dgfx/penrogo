@@ -4,7 +4,7 @@
 // differ by pattern as well as color. Empty tiles are thin construction
 // lines, keeping the geometry crisp.
 import type { Point, Player, Owner } from '../types';
-import { tracePolygon, centroidOf } from '../canvas-utils';
+import { tracePolygon, centroidOf } from '../../board-geometry';
 
 export const INK = {
   1: 'rgba(255, 255, 255, 0.95)',

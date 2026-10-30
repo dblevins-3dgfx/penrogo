@@ -6,9 +6,9 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { opponentOf, scoreArea } from '../rules';
 import { isHumanTurn, type AtariGroup, type GameEvent, type GameState, type Target, type Tile } from '../game';
-import { BOARD_H, BOARD_W, SWIPE_END_MS, WHEEL_NOTCH, boardSize, wheelPixels, wheelTurns, type Point } from '../opening';
+import { BOARD_H, BOARD_W, boardSize, centroidOf, tracePolygon, type Point } from '../board-geometry';
+import { SWIPE_END_MS, WHEEL_NOTCH, wheelPixels, wheelTurns } from '../rotation';
 import type { Skin } from '../skins';
-import { centroidOf, tracePolygon } from '../skins/canvas-utils';
 import type { Player } from '../skins/types';
 
 // Touch devices have no hover, so the preview follows a finger drag and is
