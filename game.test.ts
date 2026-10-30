@@ -2,9 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   HINT_MOVE, HINT_PASS, UNDONE, atariText, ataris, undoDepth, HINT_THINKING, OPENING_HINT, THINKING, gameReducer, initialGame, isComputerTurn, isHumanTurn,
-  placeAction, playerName, resultText, shownScore, targetAt, turnText, type GameAction, type GameState
+  playerName, resultText, shownScore, turnText, type GameAction, type GameState
 } from './game';
-import { BOARD_W, COMPUTER_OPENING, boardSize, candidateVertices, centroidOf, computerOpening } from './board-geometry';
+import { targetAt } from './targeting';
+import { BOARD_W, COMPUTER_OPENING, boardSize, candidateVertices, computerOpening } from './board-geometry';
 import { positionKey } from './rules';
 
 const run = (g: GameState, ...actions: GameAction[]) => actions.reduce(gameReducer, g);
@@ -204,49 +205,6 @@ test('the computer thinking shows on the status line', () => {
 test('New Game clears the board and the capture counts, keeping the mode', () => {
   const g = run(opened('ai'), { type: 'pass' }, { type: 'reset' });
   assert.deepEqual(g, initialGame('ai'));
-});
-
-// Spec 7, Hover and Opening preview: what the pointer is over
-test('before the board exists, the target is the opening tile under the pointer', () => {
-  const g = started();
-  const t = targetOf(g, { x: 400, y: 300 }, 'dart', 72);
-  assert.equal(t.kind, 'opening');
-  assert.equal(t.legal, true);
-  assert.deepEqual(t.kind === 'opening' && t.cand, { type: 'dart', x: 400, y: 300, rotation: 72 });
-  assert.deepEqual(t.verts, candidateVertices({ type: 'dart', x: 400, y: 300, rotation: 72 }));
-  assert.equal(targetOf(g, { x: 3, y: 300 }, 'kite', 0).legal, false, 'sticking out of the board');
-});
-
-test('on the board, the target is the tile under the pointer and whether claiming it is legal', () => {
-  const g = opened();
-  const tiles = tilesOf(g);
-  const free = quietTile(g);
-  const c = centroidOf(tiles[free].verts);
-  // A kite's centroid is inside it; a dart's is too (short of the notch)
-  const t = targetAt(g, c, 'kite', 0);
-  assert.deepEqual(t, { kind: 'tile', id: free, verts: tiles[free].verts, legal: true });
-  const taken = centroidOf(tiles[lastOf(g)].verts);
-  assert.equal(targetOf(g, taken, 'kite', 0).legal, false);
-});
-
-test('there is no target off the tiles, without a pointer, or on the computer\'s turn', () => {
-  const g = opened();
-  assert.equal(targetAt(g, null, 'kite', 0), null);
-  assert.equal(targetAt(g, { x: -50, y: -50 }, 'kite', 0), null);
-  assert.equal(targetAt(initialGame(), { x: 400, y: 300 }, 'kite', 0), null, 'not started');
-  const ai = opened('ai');
-  assert.equal(targetAt(ai, { x: 400, y: 300 }, 'kite', 0), null);
-});
-
-test('placing on a target: the opening only if it fits; a tile is claimed even if illegal', () => {
-  const g = started();
-  const fits = targetAt(g, { x: 400, y: 300 }, 'kite', 0);
-  assert.deepEqual(placeAction(fits), { type: 'open', cand: { type: 'kite', x: 400, y: 300, rotation: 0 } });
-  assert.equal(placeAction(targetAt(g, { x: 3, y: 300 }, 'kite', 0)), null);
-  assert.equal(placeAction(null), null);
-  const o = opened();
-  const taken = targetAt(o, centroidOf(tilesOf(o)[lastOf(o)].verts), 'kite', 0);
-  assert.deepEqual(placeAction(taken), { type: 'claim', id: lastOf(o) });
 });
 
 // Spec 6, Hints

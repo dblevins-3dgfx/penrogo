@@ -5,7 +5,8 @@
 // type and rotation, where the pointer is, and which dialog is open. The rules are in
 // game.ts, board-geometry.ts and rules.ts; the computer player in mcts.ts.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { atariText, ataris, placeAction, targetAt } from './game';
+import { atariText, ataris } from './game';
+import { confirmAction, placeAction, targetAt } from './targeting';
 import { rotateStep } from './rotation';
 import { type Point, type TileType } from './board-geometry';
 import { DEFAULT_PLAYERS, skinById } from './skins';
@@ -74,10 +75,17 @@ const PenroseTerritoryGame = () => {
     dispatch({ type: 'reset' });
   };
 
-  // Touch: Place confirms the preview a finger drag left on the board
+  // Touch: Place confirms the preview a finger drag left on the board, and
+  // so does a double tap on it
   const placeTarget = () => {
-    const a = target?.legal ? placeAction(target) : null;
+    const a = confirmAction(target);
     if (a) dispatch(a);
+    setHoveredPos(null);
+  };
+  const doubleTap = (pos: Point) => {
+    const a = confirmAction(targetAt(game, pos, tileType, rotation));
+    if (!a) return; // illegal: left alone, like the Place button
+    dispatch(a);
     setHoveredPos(null);
   };
 
@@ -124,6 +132,7 @@ const PenroseTerritoryGame = () => {
             atari={atari}
             onHover={setHoveredPos}
             onClick={place}
+            onDoubleTap={doubleTap}
             onRotate={rotate}
           />
         </div>

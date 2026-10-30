@@ -21,7 +21,10 @@ const HowToPlay = ({ panel, players, isTouchDevice, onClose }: HowToPlayProps) =
           : ' (rotate with the scroll wheel, right-click, or Left/Right arrow keys)'}.
         A full Penrose tiling is then laid out around it, and that tile is Player 1's first stone
       </li>
-      <li>Players then take turns claiming any empty tile</li>
+      <li>
+        Players then take turns claiming any empty tile
+        {isTouchDevice && ': tap or drag to choose one, then press Place, or double-tap it'}
+      </li>
       <li>Tiles that share an edge are neighbors. A group of your tiles is captured, and removed, when none of its neighbors are empty</li>
       <li>You can't claim a tile that would leave your own group with no empty neighbors (suicide), or that repeats an earlier position (ko)</li>
       <li>A group with only one empty neighbor left is in atari: it can be captured next move. Groups in atari are outlined in red, with a red ring on their last empty neighbor, so you can save yours or capture theirs. The warnings can be turned off in Preferences</li>

@@ -4,7 +4,8 @@
 // hints are on), Undo (when undo is on), Pass (Skip Opening before the
 // board exists) and New Game.
 import { Lightbulb, Play, RotateCcw, RotateCw, SkipForward, Undo2 } from 'lucide-react';
-import { isHumanTurn, undoDepth, type GameAction, type GameState, type Target } from '../game';
+import { isHumanTurn, undoDepth, type GameAction, type GameState } from '../game';
+import type { Target } from '../targeting';
 import { BOARD_SIZES, type BoardSizeId, type TileType } from '../board-geometry';
 import { LEVELS, type LevelId } from '../levels';
 

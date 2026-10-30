@@ -2,18 +2,15 @@
 // skin's animations, and pointer, wheel and right-click input. The canvas is
 // 800 x 600; a smaller board (see BOARD_SIZES) is drawn scaled up to fill
 // it. Pointer positions are reported in board units; the parent decides
-// what they mean (see targetAt in game.ts).
+// what they mean (see targetAt in targeting.ts).
 import { useEffect, useMemo, useRef } from 'react';
 import { opponentOf, scoreArea } from '../rules';
-import { isHumanTurn, type AtariGroup, type GameEvent, type GameState, type Target, type Tile } from '../game';
+import { isHumanTurn, type AtariGroup, type GameEvent, type GameState, type Tile } from '../game';
+import { isDoubleTap, isTap, type Tap, type Target } from '../targeting';
 import { BOARD_H, BOARD_W, boardSize, centroidOf, tracePolygon, type Point } from '../board-geometry';
 import { SWIPE_END_MS, WHEEL_NOTCH, wheelPixels, wheelTurns } from '../rotation';
 import type { Skin } from '../skins';
 import type { Player } from '../skins/types';
-
-// Touch devices have no hover, so the preview follows a finger drag and is
-// lifted above the fingertip (in canvas units) so it isn't hidden under it.
-const TOUCH_OFFSET_Y = 60;
 
 type BoardCanvasProps = {
   skin: Skin;
@@ -22,6 +19,7 @@ type BoardCanvasProps = {
   atari: AtariGroup[]; // the groups to warn about (none when the warnings are off)
   onHover: (pos: Point | null) => void;
   onClick: (pos: Point) => void; // a left mouse click
+  onDoubleTap: (pos: Point) => void; // a double tap on a touch screen
   onRotate: (dir: 1 | -1) => void; // the opening tile, by wheel or right-click; keep it stable (useCallback)
 };
 
@@ -184,7 +182,7 @@ const drawBoard = (canvas: HTMLCanvasElement, skin: Skin, game: GameState, targe
   drawOverlays(ctx, skin, game, target, atari, fxDrawsTarget, w, h);
 };
 
-const BoardCanvas = ({ skin, game, target, atari, onHover, onClick, onRotate }: BoardCanvasProps) => {
+const BoardCanvas = ({ skin, game, target, atari, onHover, onClick, onDoubleTap, onRotate }: BoardCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   // Canvas units per board unit
@@ -196,6 +194,10 @@ const BoardCanvas = ({ skin, game, target, atari, onHover, onClick, onRotate }: 
   const { started, tiles } = game;
   const humanTurn = isHumanTurn(game);
   const rotating = started && !tiles; // the opening tile can be turned
+  // Touch: where the finger went down (CSS pixels), and the last tap, to
+  // spot a tap and a double tap
+  const touchDown = useRef<Point | null>(null);
+  const lastTap = useRef<Tap | null>(null);
 
   useEffect(() => {
     if (canvasRef.current) drawBoard(canvasRef.current, skin, game, target, atari, fxDrawsLastMove, fxDrawsTarget);
@@ -232,16 +234,18 @@ const BoardCanvas = ({ skin, game, target, atari, onHover, onClick, onRotate }: 
   const canvasPoint = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
     const canvas = e.currentTarget;
     const rect = canvas.getBoundingClientRect();
-    const touch = e.pointerType === 'touch';
     return {
       x: (e.clientX - rect.left) * canvas.width / rect.width / scale,
-      y: ((e.clientY - rect.top) * canvas.height / rect.height - (touch ? TOUCH_OFFSET_Y : 0)) / scale
+      y: (e.clientY - rect.top) * canvas.height / rect.height / scale
     };
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!humanTurn) return;
-    if (e.pointerType === 'touch') e.currentTarget.setPointerCapture?.(e.pointerId);
+    if (e.pointerType === 'touch') {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      touchDown.current = { x: e.clientX, y: e.clientY };
+    }
     onHover(canvasPoint(e));
   };
 
@@ -250,9 +254,25 @@ const BoardCanvas = ({ skin, game, target, atari, onHover, onClick, onRotate }: 
   };
 
   // Mouse: left click places at once. Touch: lifting the finger leaves the
-  // preview in place so it can be adjusted, and the Place button confirms.
+  // preview in place so it can be adjusted, and the Place button confirms;
+  // a second tap on the same tile soon after the first places it too.
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (humanTurn && e.pointerType === 'mouse' && e.button === 0) onClick(canvasPoint(e));
+    if (!humanTurn) return;
+    if (e.pointerType === 'mouse' && e.button === 0) onClick(canvasPoint(e));
+    if (e.pointerType !== 'touch' || !touchDown.current) return;
+    const down = touchDown.current;
+    touchDown.current = null;
+    if (!isTap(down, { x: e.clientX, y: e.clientY })) {
+      lastTap.current = null; // a drag
+      return;
+    }
+    const tap = { time: e.timeStamp, pos: canvasPoint(e) };
+    if (isDoubleTap(lastTap.current, tap, tiles)) {
+      lastTap.current = null; // so a third tap doesn't place again
+      onDoubleTap(tap.pos);
+    } else {
+      lastTap.current = tap;
+    }
   };
 
   const handlePointerLeave = (e: React.PointerEvent<HTMLCanvasElement>) => {
