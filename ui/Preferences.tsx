@@ -5,17 +5,14 @@ import { Check } from 'lucide-react';
 import Dialog from './Dialog';
 import SkinPreview from './SkinPreview';
 import { SKINS } from '../skins';
+import { SWITCHES, type SwitchId, type Switches } from '../prefs';
 
 type PreferencesProps = {
   panel: string; // the skin's panel classes
   skinId: string;
   onSkin: (id: string) => void;
-  hintsOn: boolean;
-  onHintsOn: (on: boolean) => void;
-  atariOn: boolean;
-  onAtariOn: (on: boolean) => void;
-  undoOn: boolean;
-  onUndoOn: (on: boolean) => void;
+  switches: Switches;
+  onSwitch: (id: SwitchId, on: boolean) => void;
   onClose: () => void;
 };
 
@@ -66,33 +63,15 @@ const SkinChooser = ({ skinId, onSkin }: { skinId: string; onSkin: (id: string) 
   </div>
 );
 
-const Preferences = (props: PreferencesProps) => {
-  const { panel, skinId, onSkin, hintsOn, onHintsOn, atariOn, onAtariOn, undoOn, onUndoOn, onClose } = props;
-  return (
-    <Dialog title="Preferences" panel={panel} onClose={onClose}>
-      <h3 className="text-white font-semibold">Skin</h3>
-      <p className="text-slate-400 text-xs sm:text-sm">How the board and page look. It never changes the game.</p>
-      <SkinChooser skinId={skinId} onSkin={onSkin} />
-      <Toggle
-        label="Hints"
-        detail="Show a Hint button that highlights a good move for the player to move (or suggests passing)."
-        on={hintsOn}
-        onChange={onHintsOn}
-      />
-      <Toggle
-        label="Atari warnings"
-        detail="Outline any group down to its last liberty (it can be captured next move), mark that liberty, and say so under the turn."
-        on={atariOn}
-        onChange={onAtariOn}
-      />
-      <Toggle
-        label="Undo"
-        detail="Show an Undo button that takes back your last move (against the computer, its reply too). Turn it off for a game without take-backs."
-        on={undoOn}
-        onChange={onUndoOn}
-      />
-    </Dialog>
-  );
-};
+const Preferences = ({ panel, skinId, onSkin, switches, onSwitch, onClose }: PreferencesProps) => (
+  <Dialog title="Preferences" panel={panel} onClose={onClose}>
+    <h3 className="text-white font-semibold">Skin</h3>
+    <p className="text-slate-400 text-xs sm:text-sm">How the board and page look. It never changes the game.</p>
+    <SkinChooser skinId={skinId} onSkin={onSkin} />
+    {SWITCHES.map(s => (
+      <Toggle key={s.id} label={s.label} detail={s.detail} on={switches[s.id]} onChange={on => onSwitch(s.id, on)} />
+    ))}
+  </Dialog>
+);
 
 export default Preferences;

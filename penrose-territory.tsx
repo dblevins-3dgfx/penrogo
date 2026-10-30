@@ -22,7 +22,7 @@ const isTouchDevice = typeof navigator !== 'undefined' && navigator.maxTouchPoin
 
 const PenroseTerritoryGame = () => {
   const {
-    skinId, setSkinId, level, setLevel, boardSizeId, setBoardSize, hintsOn, setHintsOn, atariOn, setAtariOn, undoOn, setUndoOn
+    skinId, setSkinId, level, setLevel, boardSizeId, setBoardSize, switches, setSwitch
   } = useSettings();
   const [game, dispatch] = useGame(levelById(level).search);
   const [tileType, setTileType] = useState<TileType>('kite');
@@ -40,7 +40,7 @@ const PenroseTerritoryGame = () => {
   // and the skin's preview animation isn't restarted on every render
   const target = useMemo(() => targetAt(game, hoveredPos, tileType, rotation), [game, hoveredPos, tileType, rotation]);
   // The groups in atari, when the warnings are on
-  const atari = useMemo(() => (atariOn ? ataris(game) : []), [atariOn, game]);
+  const atari = useMemo(() => (switches.atari ? ataris(game) : []), [switches.atari, game]);
   const place = (pos: Point) => {
     const a = placeAction(targetAt(game, pos, tileType, rotation));
     if (a) dispatch(a);
@@ -60,8 +60,8 @@ const PenroseTerritoryGame = () => {
 
   // Turning hints off takes away a hint already shown (or being looked for)
   useEffect(() => {
-    if (!hintsOn && game.hint) dispatch({ type: 'clearHint' });
-  }, [hintsOn, game.hint, dispatch]);
+    if (!switches.hints && game.hint) dispatch({ type: 'clearHint' });
+  }, [switches.hints, game.hint, dispatch]);
 
   const start = () => {
     setRotation(0);
@@ -108,8 +108,8 @@ const PenroseTerritoryGame = () => {
             isTouchDevice={isTouchDevice}
             target={target}
             onPlace={placeTarget}
-            hintsOn={hintsOn}
-            undoOn={undoOn}
+            hintsOn={switches.hints}
+            undoOn={switches.undo}
             onStart={start}
             onNewGame={newGame}
           />
@@ -138,12 +138,8 @@ const PenroseTerritoryGame = () => {
           panel={panel}
           skinId={skinId}
           onSkin={setSkinId}
-          hintsOn={hintsOn}
-          onHintsOn={setHintsOn}
-          atariOn={atariOn}
-          onAtariOn={setAtariOn}
-          undoOn={undoOn}
-          onUndoOn={setUndoOn}
+          switches={switches}
+          onSwitch={setSwitch}
           onClose={() => setShowPrefs(false)}
         />
       )}

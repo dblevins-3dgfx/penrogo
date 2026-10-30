@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ATARI_STORAGE_KEY, BOARD_STORAGE_KEY, DEFAULT_LEVEL, HINTS_STORAGE_KEY, LEVELS, LEVEL_STORAGE_KEY, UNDO_STORAGE_KEY,
-  formatSwitch, levelById, parseBoardSize, parseLevel, parseSkinId, parseSwitch
+  BOARD_STORAGE_KEY, DEFAULT_LEVEL, LEVELS, LEVEL_STORAGE_KEY, OLD_THINK_STORAGE_KEY, SKIN_STORAGE_KEY, SWITCHES,
+  formatSwitch, levelById, parseBoardSize, parseLevel, parseSkinId, parseSwitch, readSwitches, switchKey
 } from './prefs';
 
 // Spec 6: the computer's level, Medium by default, remembered
@@ -53,7 +53,26 @@ test('undo, hints and atari warnings are on unless saved as off', () => {
   assert.equal(parseSwitch(formatSwitch(true)), true, 'on round-trips');
 });
 
+// Spec 8: the Preferences switches, in order, each with its saved key
+test('the switches are Hints, Atari warnings and Undo, saved under their existing keys', () => {
+  assert.deepEqual(SWITCHES.map(s => s.label), ['Hints', 'Atari warnings', 'Undo']);
+  // Unchanged keys, so settings saved before the table existed carry over
+  assert.deepEqual(SWITCHES.map(s => s.key), ['penrogo.hints', 'penrogo.atari', 'penrogo.undo']);
+  for (const s of SWITCHES) {
+    assert.equal(switchKey(s.id), s.key);
+    assert.ok(s.detail.length > 0, `${s.label} explains itself`);
+  }
+});
+
+test('the switches are read back from storage: on unless saved as off', () => {
+  assert.deepEqual(readSwitches(() => null), { hints: true, atari: true, undo: true }, 'nothing saved');
+  const saved: Record<string, string> = { 'penrogo.atari': 'off', 'penrogo.undo': 'on' };
+  assert.deepEqual(readSwitches(k => saved[k] ?? null), { hints: true, atari: false, undo: true });
+});
+
 test('each setting is saved under its own key', () => {
-  const keys = [UNDO_STORAGE_KEY, ATARI_STORAGE_KEY, HINTS_STORAGE_KEY, LEVEL_STORAGE_KEY, BOARD_STORAGE_KEY];
+  const keys = [
+    SKIN_STORAGE_KEY, LEVEL_STORAGE_KEY, BOARD_STORAGE_KEY, OLD_THINK_STORAGE_KEY, ...SWITCHES.map(s => s.key)
+  ];
   assert.equal(new Set(keys).size, keys.length);
 });

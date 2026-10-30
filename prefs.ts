@@ -10,9 +10,6 @@ export const LEVEL_STORAGE_KEY = 'penrogo.computer';
 export const BOARD_STORAGE_KEY = 'penrogo.board';
 // The thinking time saved before levels existed, read once to pick a level
 export const OLD_THINK_STORAGE_KEY = 'penrogo.thinkSeconds';
-export const HINTS_STORAGE_KEY = 'penrogo.hints';
-export const ATARI_STORAGE_KEY = 'penrogo.atari';
-export const UNDO_STORAGE_KEY = 'penrogo.undo';
 
 // How strong the computer plays: how long it may think per move, and for
 // Beginner a cap on its playouts and a chance of picking a runner-up move
@@ -45,8 +42,38 @@ export const parseBoardSize = (raw: string | null): BoardSizeId =>
 export const parseSkinId = (raw: string | null, ids: string[], fallback: string): string =>
   raw !== null && ids.includes(raw) ? raw : fallback;
 
-// A switch that is on by default: whether the Hint and Undo buttons are
-// available, and whether atari warnings are shown. Saved as 'on' or 'off'; anything
-// else (including nothing saved) means on, so new players have it.
+// The on/off settings in Preferences, in the order shown there: the
+// storage key, and the label and line explaining it. Adding a switch is a
+// row here plus the code that uses it (penrose-territory.tsx reads
+// `switches[id]`).
+export const SWITCHES = [
+  {
+    id: 'hints', key: 'penrogo.hints', label: 'Hints',
+    detail: 'Show a Hint button that highlights a good move for the player to move (or suggests passing).'
+  },
+  {
+    id: 'atari', key: 'penrogo.atari', label: 'Atari warnings',
+    detail: 'Outline any group down to its last liberty (it can be captured next move), mark that liberty, and say so under the turn.'
+  },
+  {
+    id: 'undo', key: 'penrogo.undo', label: 'Undo',
+    detail: 'Show an Undo button that takes back your last move (against the computer, its reply too). Turn it off for a game without take-backs.'
+  }
+] as const;
+export type SwitchId = (typeof SWITCHES)[number]['id'];
+export type Switches = Record<SwitchId, boolean>;
+
+// Every switch is on by default. Saved as 'on' or 'off'; anything else
+// (including nothing saved) means on, so new players have it.
 export const parseSwitch = (raw: string | null): boolean => raw !== 'off';
 export const formatSwitch = (on: boolean): string => (on ? 'on' : 'off');
+
+// Every switch read back, given a way to read a stored value by key.
+export const readSwitches = (read: (key: string) => string | null): Switches => {
+  const switches = {} as Switches;
+  for (const s of SWITCHES) switches[s.id] = parseSwitch(read(s.key));
+  return switches;
+};
+
+// Where a switch is stored.
+export const switchKey = (id: SwitchId): string => SWITCHES.find(s => s.id === id)?.key ?? `penrogo.${id}`;
