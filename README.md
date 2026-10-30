@@ -60,12 +60,14 @@ One-time setup: repository **Settings → Pages → Build and deployment → Sou
 - `ai-worker.ts`: runs the computer's search in a Web Worker
 - `penrose-board.ts`: Penrose tiling generation and the tile adjacency graph
 - `types.ts`: types shared by the board, the rules, the game and the skins (players, stones, points, tiles)
-- `opening.ts`: the playfield and the opening tile (its shape, rotation, whether it fits), and which tile a point is over
+- `board-geometry.ts`: the tile shapes, the canvas and board sizes, the opening tile (where it lies, whether it fits), which tile a point is over, and a tile's centroid and outline path (shared by the board and the skins)
+- `rotation.ts`: turning the opening tile in 36° steps, and how a mouse wheel or trackpad scroll becomes steps
+- `levels.ts`: the computer's levels (Beginner to Strong) and how each one searches
 - `*.test.ts`: unit tests for the spec's rules; `untested-requirements.md` lists the rules they don't cover yet
 - `skins/`: visual skins, one folder each, found automatically
   - `types.ts`: the `Skin` and `SkinEffects` interfaces every skin implements
   - `index.ts`: the registry (discovers `skins/*/index.ts`)
-  - `canvas-utils.ts`: drawing helpers any skin may use
+  - `canvas-utils.ts`: drawing helpers any skin may use (colors, sparkles, the illegal-move outline)
   - `plain-jane/`: flat colors on a white board
   - `dazzle/`: Bejeweled-inspired gems (`gems.ts`), with animations on an overlay canvas (`effects.ts`)
   - `stained-glass/`: a leaded window of cobalt and ruby glass (`glass.ts`), with a sweeping sunbeam and shattering captures (`effects.ts`)

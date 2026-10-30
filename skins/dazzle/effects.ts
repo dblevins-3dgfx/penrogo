@@ -19,7 +19,8 @@
 // loop keeps running, capped at PERSISTENT_FPS when nothing else moves.
 
 import type { Owner, Player, Point, SkinEffects } from '../types';
-import { centroidOf, tracePolygon, drawSparkle, mix, rgb } from '../canvas-utils';
+import { centroidOf, tracePolygon } from '../../board-geometry';
+import { drawSparkle, mix, rgb } from '../canvas-utils';
 import { GEMS, LIGHT, BG_SPARKLES, drawDazzleBackground, drawGem } from './gems';
 
 const POP_MS = 320;

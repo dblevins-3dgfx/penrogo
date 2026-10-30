@@ -8,7 +8,7 @@
 //
 // The loop runs only while one of these is in progress.
 import type { SkinEffects, Point, Player } from '../types';
-import { centroidOf } from '../canvas-utils';
+import { centroidOf } from '../../board-geometry';
 import { drawHatch, drawOutline, coverWithEmpty } from './drafting';
 
 const TRACE_MS = 320;

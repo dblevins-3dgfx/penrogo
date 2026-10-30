@@ -3,7 +3,8 @@
 // variations (tint, bubbles, streaks) seeded from its position, so the
 // window looks handmade but doesn't change between redraws.
 import type { Point, Player } from '../types';
-import { tracePolygon, centroidOf, mix, rgb } from '../canvas-utils';
+import { tracePolygon, centroidOf } from '../../board-geometry';
+import { mix, rgb } from '../canvas-utils';
 
 export const GLASS = {
   1: { base: [29, 78, 216], light: [147, 197, 253], deep: [23, 37, 84] }, // cobalt

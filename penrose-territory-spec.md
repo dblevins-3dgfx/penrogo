@@ -1,6 +1,6 @@
 # Penrogo (Penrose Go): Specification
 
-Status: reflects the game as currently implemented (`PenroseTerritoryGame` in `penrose-territory.tsx` with its hooks and components in `ui/`, game state and turns in `game.ts`, saved settings in `prefs.ts`, board generation in `penrose-board.ts`, the opening tile in `opening.ts`, the rules in `rules.ts`, the computer player in `mcts.ts`).
+Status: reflects the game as currently implemented (`PenroseTerritoryGame` in `penrose-territory.tsx` with its hooks and components in `ui/`, game state and turns in `game.ts`, saved settings in `prefs.ts`, board generation in `penrose-board.ts`, the board's geometry and the opening tile in `board-geometry.ts`, turning it in `rotation.ts`, the computer's levels in `levels.ts`, the rules in `rules.ts`, the computer player in `mcts.ts`).
 
 ## 1. Overview
 

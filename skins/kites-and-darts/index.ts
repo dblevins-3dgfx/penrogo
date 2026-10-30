@@ -3,7 +3,8 @@
 // arrowheads. Empty tiles are only faint kite-string lines. Drawing of the
 // pieces is in pieces.ts; animations in effects.ts.
 import type { Skin } from '../types';
-import { tracePolygon, drawIllegalOutline } from '../canvas-utils';
+import { tracePolygon } from '../../board-geometry';
+import { drawIllegalOutline } from '../canvas-utils';
 import { drawPiece, drawLastMoveMarker } from './pieces';
 import { KitesAndDartsEffects } from './effects';
 

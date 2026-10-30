@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { FastBoard, WANDER_CHOICES, chooseMctsMove, neighborArrays, pickMove } from './mcts';
 import { groupAt, opponentOf, playMove, positionKey } from './rules';
 import { buildBoard } from './penrose-board';
-import { TILE_SIZE, candidateVertices, computerOpening } from './opening';
+import { TILE_SIZE, candidateVertices, computerOpening } from './board-geometry';
 import { board, grid } from './test-boards';
 import type { GraphTile, Player, Stone } from './types';
 

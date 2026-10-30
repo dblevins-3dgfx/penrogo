@@ -1,5 +1,6 @@
 // Dazzle's gem drawing, shared by the skin (static board) and its effects.
-import { tracePolygon, centroidOf, mix, rgb } from '../canvas-utils';
+import { tracePolygon, centroidOf } from '../../board-geometry';
+import { mix, rgb } from '../canvas-utils';
 import type { Player, Point } from '../types';
 
 // Gem palettes: facet shading runs from dark to light

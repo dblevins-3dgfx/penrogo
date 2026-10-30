@@ -3,7 +3,7 @@
 // skin's own canvas hooks (its animations aren't run).
 import { useEffect, useRef } from 'react';
 import { buildBoard } from '../penrose-board';
-import { BOARD_H, BOARD_W, COMPUTER_OPENING, TILE_SIZE, candidateVertices } from '../opening';
+import { BOARD_H, BOARD_W, COMPUTER_OPENING, TILE_SIZE, candidateVertices } from '../board-geometry';
 import type { Skin } from '../skins';
 import type { Player, Stone, Tile } from '../types';
 

@@ -12,7 +12,8 @@
 // The loop runs while the last move is shown (capped at PERSISTENT_FPS when
 // nothing else moves) or while a sunbeam or falling glass is in progress.
 import type { SkinEffects, Point, Player, Owner } from '../types';
-import { centroidOf, tracePolygon, drawSparkle, mix, rgb } from '../canvas-utils';
+import { centroidOf, tracePolygon } from '../../board-geometry';
+import { drawSparkle, mix, rgb } from '../canvas-utils';
 import { GLASS, LIT, drawInnerGlow, paneRadius } from './glass';
 
 const PERSISTENT_FPS = 30;

@@ -3,7 +3,8 @@
 // tubes of neighboring tiles stay separate; empty tiles are crisp dim
 // outlines, so the kite and dart shapes always read clearly.
 import type { Point, Owner } from '../types';
-import { tracePolygon, centroidOf, mix, rgb } from '../canvas-utils';
+import { tracePolygon, centroidOf } from '../../board-geometry';
+import { mix, rgb } from '../canvas-utils';
 
 export const NEON = {
   1: [34, 211, 238], // cyan

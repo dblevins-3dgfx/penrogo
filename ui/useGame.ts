@@ -8,7 +8,7 @@
 // move while a hint is being looked for), so a stale answer is never used.
 import { useEffect, useReducer } from 'react';
 import { HINT_TIME_MS, gameReducer, initialGame, isComputerTurn, type GameState } from '../game';
-import { boardSize, computerOpening } from '../opening';
+import { boardSize, computerOpening } from '../board-geometry';
 import type { ThinkRequest } from '../ai-worker';
 import type { SearchOptions } from '../mcts';
 import type { Player } from '../types';
@@ -35,7 +35,7 @@ const search = (pos: Position, player: Player, limits: ThinkRequest['search'], o
   return () => worker.terminate();
 };
 
-// `computer` is how the computer searches (its level: see LEVELS in prefs.ts)
+// `computer` is how the computer searches (its level: see LEVELS in levels.ts)
 export const useGame = (computer: Omit<SearchOptions, 'rand'>) => {
   const [game, dispatch] = useReducer(gameReducer, undefined, () => initialGame());
   const { started, gameOver, tiles, stones, history, passes, hint, size } = game;

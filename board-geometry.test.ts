@@ -1,10 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  BOARD_H, BOARD_W, COMPUTER_OPENING, PHI, TILE_SIZE, TRACKPAD_STEP, WHEEL_NOTCH,
-  candidateVertices, dartVertices, isOutsidePlayfield, kiteVertices, rotateStep, tileAtPoint,
-  wheelPixels, wheelTurns
-} from './opening';
+  BOARD_H, BOARD_W, COMPUTER_OPENING, PHI, TILE_SIZE, candidateVertices, centroidOf, dartVertices, isOutsidePlayfield, kiteVertices, tileAtPoint
+} from './board-geometry';
 import type { Point } from './types';
 
 const L = TILE_SIZE;
@@ -61,16 +59,6 @@ test('rotation turns the axis by the same angle', () => {
   assert.ok(near(a36 - a0, 36));
 });
 
-test('rotation steps by 36 degrees and wraps within 0 to 359', () => {
-  assert.equal(rotateStep(0, 1), 36);
-  assert.equal(rotateStep(324, 1), 0);
-  assert.equal(rotateStep(0, -1), 324);
-  assert.equal(rotateStep(36, -1), 0);
-  let r = 0;
-  for (let i = 0; i < 10; i++) r = rotateStep(r, 1);
-  assert.equal(r, 0, 'ten steps make a full turn');
-});
-
 // Spec 5, Opening: every vertex must be inside the board
 test('a tile is outside the playfield when any vertex sticks out', () => {
   assert.equal(isOutsidePlayfield(kiteVertices(BOARD_W / 2, BOARD_H / 2, 0)), false);
@@ -103,32 +91,11 @@ test('tileAtPoint finds the tile under a point, and misses the dart notch', () =
   assert.equal(tileAtPoint(tiles, 500, 500), -1);
 });
 
-// Spec 8: the scroll wheel rotates the opening tile
-test('a wheel event in lines or pages is converted to pixels', () => {
-  assert.equal(wheelPixels(3, 0), 3);
-  assert.equal(wheelPixels(3, 1), 48);
-  assert.equal(wheelPixels(-1, 2), -400);
-});
-
-test('a mouse wheel notch turns one step: up clockwise, down counter-clockwise', () => {
-  assert.deepEqual(wheelTurns(0, -WHEEL_NOTCH), { turns: [1], total: 0 });
-  assert.deepEqual(wheelTurns(0, 120), { turns: [-1], total: 0 });
-  // A notch leaves a trackpad swipe's partial total alone
-  assert.deepEqual(wheelTurns(20, 100), { turns: [-1], total: 20 });
-});
-
-test('a trackpad swipe turns one step per TRACKPAD_STEP pixels, carrying the rest', () => {
-  let total = 0;
-  const turns = [];
-  for (let i = 0; i < 12; i++) {
-    const r = wheelTurns(total, 10); // twelve small scrolls down: 120 pixels
-    turns.push(...r.turns);
-    total = r.total;
+test('centroidOf is the average of the corners, inside a kite and a dart', () => {
+  assert.deepEqual(centroidOf([{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 4, y: 2 }, { x: 0, y: 2 }]), { x: 2, y: 1 });
+  for (const verts of [kiteVertices(300, 200, 72), dartVertices(300, 200, 72)]) {
+    const c = centroidOf(verts);
+    assert.ok(near(c.x, 300) && near(c.y, 200), 'a placed tile is centered on its centroid');
+    assert.equal(tileAtPoint([{ verts }], c.x, c.y), 0, 'and the centroid is inside it');
   }
-  assert.equal(TRACKPAD_STEP, 50);
-  assert.deepEqual(turns, [-1, -1]);
-  assert.equal(total, 20);
-  // Scrolling back up uses up the partial total before turning
-  assert.deepEqual(wheelTurns(20, -40), { turns: [], total: -20 });
-  assert.deepEqual(wheelTurns(-20, -40), { turns: [1], total: -10 });
 });

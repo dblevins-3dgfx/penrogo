@@ -3,12 +3,13 @@
 // scoreboard, the controls, the board, and the Preferences and How to Play
 // dialogs. It also holds what only the screen needs: the opening tile's
 // type and rotation, where the pointer is, and which dialog is open. The rules are in
-// game.ts, opening.ts and rules.ts; the computer player in mcts.ts.
+// game.ts, board-geometry.ts and rules.ts; the computer player in mcts.ts.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { atariText, ataris, placeAction, targetAt } from './game';
-import { rotateStep, type Point, type TileType } from './opening';
+import { rotateStep } from './rotation';
+import { type Point, type TileType } from './board-geometry';
 import { DEFAULT_PLAYERS, skinById } from './skins';
-import { levelById } from './prefs';
+import { levelById } from './levels';
 import { useGame } from './ui/useGame';
 import { useSettings } from './ui/useSettings';
 import Header from './ui/Header';

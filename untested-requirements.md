@@ -2,14 +2,14 @@
 
 Every rule in `penrose-territory-spec.md` should have a unit test (`*.test.ts` beside the module, run with `npm test`) that fails if the rule breaks. This file lists the rules that don't, and why. Keep it current: a pull request that adds or changes a spec rule either tests it or adds a row here, and one that adds a test for a rule listed here removes its row.
 
-The tests only reach plain modules without React: `rules.ts`, `mcts.ts`, `penrose-board.ts`, `opening.ts`, `game.ts` and `prefs.ts`. The React code (`penrose-territory.tsx` and the hooks and components in `ui/`) and the skins need a browser to run, so a rule that lives there is untested. The fix is usually to move the decision into a plain function and have the component call it.
+The tests only reach plain modules without React: `rules.ts`, `mcts.ts`, `penrose-board.ts`, `board-geometry.ts`, `rotation.ts`, `levels.ts`, `game.ts` and `prefs.ts`. The React code (`penrose-territory.tsx` and the hooks and components in `ui/`) and the skins need a browser to run, so a rule that lives there is untested. The fix is usually to move the decision into a plain function and have the component call it.
 
 ## Untested rules
 
 | Spec section | Rule | Where it lives | Why it isn't tested |
 | --- | --- | --- | --- |
 | 4. Board Generation | No vertex-coloring conflicts | `deflate` in `penrose-board.ts` | Testable, but the half-tiles don't keep vertex colors, so the test would have to recompute them. Not written yet. |
-| 5. Rules | The computer opens after a short pause (0.4 s) | the computer-turn effect in `ui/useGame.ts` | A timer. Skipping the opening and where the computer opens are tested (`game.test.ts`, `opening.test.ts`). |
+| 5. Rules | The computer opens after a short pause (0.4 s) | the computer-turn effect in `ui/useGame.ts` | A timer. Skipping the opening and where the computer opens are tested (`game.test.ts`, `board-geometry.test.ts`). |
 | 5. Rules | At the end, each player's surrounded empty regions are tinted | `drawStones` in `ui/BoardCanvas.tsx` | Canvas drawing. Who owns each region (`scoreArea`) and the scoreboard's numbers (`shownScore`) are tested. |
 | 5. Rules | Undo: the button shown and enabled at the right times; undoing while the computer thinks drops its search; the Preferences switch saved in localStorage | `PlayControls` in `ui/Controls.tsx`; the computer-turn effect in `ui/useGame.ts`; `ui/Preferences.tsx`, `ui/useSettings.ts` | Rendering, the Web Worker and storage. What Undo takes back and restores (`undoDepth`, `gameReducer`) and reading the saved switch (`parseSwitch`, `readSwitches`) are tested. |
 | 6. Computer Opponent | Search runs in a Web Worker; the level is saved in localStorage and applied from the next game | `ai-worker.ts`; `ui/useSettings.ts` and the computer-turn effect in `ui/useGame.ts` | Web Worker, storage and timers. The levels, the default, reading a saved value back (and an old thinking time) and Beginner's move choice (`pickMove`) are tested (`prefs.test.ts`, `mcts.test.ts`). |

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildBoard, generatePatch } from './penrose-board';
-import { BOARD_SIZES, computerOpening, candidateVertices } from './opening';
+import { BOARD_SIZES, computerOpening, candidateVertices } from './board-geometry';
 import type { Point, Tile } from './types';
 
 const PHI = (1 + Math.sqrt(5)) / 2;

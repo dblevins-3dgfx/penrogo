@@ -1,7 +1,8 @@
 // Dazzle: Bejeweled-inspired. Stones are cut gems (sapphire and ruby) set
 // in dark gold-rimmed sockets on a velvet background, with animations.
 import type { Skin } from '../types';
-import { tracePolygon, centroidOf, drawIllegalOutline, drawSparkle } from '../canvas-utils';
+import { tracePolygon, centroidOf } from '../../board-geometry';
+import { drawIllegalOutline, drawSparkle } from '../canvas-utils';
 import { GEMS, drawGem, drawDazzleBackground } from './gems';
 import { DazzleEffects } from './effects';
 
