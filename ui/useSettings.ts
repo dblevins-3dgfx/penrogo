@@ -1,11 +1,11 @@
 // The settings remembered in this browser: the skin, the computer's level,
-// the board size, whether hints and undo are available and whether atari
-// warnings are shown. What a saved value means is decided in prefs.ts.
+// the board size, and the on/off switches (SWITCHES in prefs.ts: hints,
+// atari warnings, undo). What a saved value means is decided in prefs.ts.
 import { useState } from 'react';
 import { SKINS, DEFAULT_SKIN } from '../skins';
 import {
-  ATARI_STORAGE_KEY, BOARD_STORAGE_KEY, HINTS_STORAGE_KEY, LEVEL_STORAGE_KEY, OLD_THINK_STORAGE_KEY, SKIN_STORAGE_KEY,
-  UNDO_STORAGE_KEY, formatSwitch, parseBoardSize, parseLevel, parseSkinId, parseSwitch, type LevelId
+  BOARD_STORAGE_KEY, LEVEL_STORAGE_KEY, OLD_THINK_STORAGE_KEY, SKIN_STORAGE_KEY,
+  formatSwitch, parseBoardSize, parseLevel, parseSkinId, readSwitches, switchKey, type LevelId, type SwitchId
 } from '../prefs';
 import type { BoardSizeId } from '../opening';
 
@@ -30,9 +30,7 @@ export const useSettings = () => {
     parseSkinId(read(SKIN_STORAGE_KEY), SKINS.map(s => s.id), DEFAULT_SKIN));
   const [level, setLevelState] = useState(() => parseLevel(read(LEVEL_STORAGE_KEY), read(OLD_THINK_STORAGE_KEY)));
   const [boardSizeId, setBoardSizeState] = useState(() => parseBoardSize(read(BOARD_STORAGE_KEY)));
-  const [hintsOn, setHintsOnState] = useState(() => parseSwitch(read(HINTS_STORAGE_KEY)));
-  const [atariOn, setAtariOnState] = useState(() => parseSwitch(read(ATARI_STORAGE_KEY)));
-  const [undoOn, setUndoOnState] = useState(() => parseSwitch(read(UNDO_STORAGE_KEY)));
+  const [switches, setSwitches] = useState(() => readSwitches(read));
 
   const setSkinId = (id: string) => {
     setSkinIdState(id);
@@ -46,21 +44,10 @@ export const useSettings = () => {
     setBoardSizeState(s);
     write(BOARD_STORAGE_KEY, s);
   };
-
-  const setHintsOn = (on: boolean) => {
-    setHintsOnState(on);
-    write(HINTS_STORAGE_KEY, formatSwitch(on));
-  };
-  const setAtariOn = (on: boolean) => {
-    setAtariOnState(on);
-    write(ATARI_STORAGE_KEY, formatSwitch(on));
-  };
-  const setUndoOn = (on: boolean) => {
-    setUndoOnState(on);
-    write(UNDO_STORAGE_KEY, formatSwitch(on));
+  const setSwitch = (id: SwitchId, on: boolean) => {
+    setSwitches(prev => ({ ...prev, [id]: on }));
+    write(switchKey(id), formatSwitch(on));
   };
 
-  return {
-    skinId, setSkinId, level, setLevel, boardSizeId, setBoardSize, hintsOn, setHintsOn, atariOn, setAtariOn, undoOn, setUndoOn
-  };
+  return { skinId, setSkinId, level, setLevel, boardSizeId, setBoardSize, switches, setSwitch };
 };
