@@ -3,7 +3,7 @@
 // these functions only decide what a stored string means.
 
 import { BOARD_SIZES, DEFAULT_BOARD_SIZE, type BoardSizeId } from './opening';
-import type { SearchOptions } from './go-engine';
+import type { SearchOptions } from './mcts';
 
 export const SKIN_STORAGE_KEY = 'penrogo.skin';
 export const LEVEL_STORAGE_KEY = 'penrogo.computer';

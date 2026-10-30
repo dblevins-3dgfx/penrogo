@@ -4,7 +4,7 @@
 // only draws it; nothing here touches the page.
 
 import { buildBoard } from './penrose-board';
-import { groupsInAtari, opponentOf, playMove, positionKey, scoreArea, type AtariGroup } from './go-engine';
+import { groupsInAtari, opponentOf, playMove, positionKey, scoreArea, type AtariGroup } from './rules';
 import {
   DEFAULT_BOARD_SIZE, TILE_SIZE, boardSize, candidateVertices, isOutsidePlayfield, tileAtPoint,
   type BoardSizeId, type Candidate

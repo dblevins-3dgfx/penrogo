@@ -1,6 +1,6 @@
 # Penrogo (Penrose Go): Specification
 
-Status: reflects the game as currently implemented (`PenroseTerritoryGame` in `penrose-territory.tsx` with its hooks and components in `ui/`, game state and turns in `game.ts`, saved settings in `prefs.ts`, board generation in `penrose-board.ts`, the opening tile in `opening.ts`, rules and the computer player in `go-engine.ts`).
+Status: reflects the game as currently implemented (`PenroseTerritoryGame` in `penrose-territory.tsx` with its hooks and components in `ui/`, game state and turns in `game.ts`, saved settings in `prefs.ts`, board generation in `penrose-board.ts`, the opening tile in `opening.ts`, the rules in `rules.ts`, the computer player in `mcts.ts`).
 
 ## 1. Overview
 
@@ -47,7 +47,7 @@ Verified: every tile has exact kite or dart geometry, there are no vertex-colori
 
 ## 6. Computer Opponent
 
-Plays Player 2 in vs Computer mode, using Monte Carlo tree search (`go-engine.ts`), run in a Web Worker (`ai-worker.ts`) so the page stays responsive. Its strength is a level picked on the start screen when vs Computer is selected (**Computer**):
+Plays Player 2 in vs Computer mode, using Monte Carlo tree search (`mcts.ts`), run in a Web Worker (`ai-worker.ts`) so the page stays responsive. Its strength is a level picked on the start screen when vs Computer is selected (**Computer**):
 
 | Level | Search |
 |---|---|

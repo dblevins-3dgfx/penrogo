@@ -1,6 +1,6 @@
 // Runs the computer player's search off the main thread, so the page stays
 // responsive while it thinks.
-import { chooseMctsMove, type SearchOptions } from './go-engine';
+import { chooseMctsMove, type SearchOptions } from './mcts';
 import type { GraphTile, Player, Stone } from './types';
 
 // What the page sends: the board as neighbor lists, the position, every

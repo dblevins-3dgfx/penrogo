@@ -4,7 +4,7 @@
 // it. Pointer positions are reported in board units; the parent decides
 // what they mean (see targetAt in game.ts).
 import { useEffect, useMemo, useRef } from 'react';
-import { opponentOf, scoreArea } from '../go-engine';
+import { opponentOf, scoreArea } from '../rules';
 import { isHumanTurn, type AtariGroup, type GameEvent, type GameState, type Target, type Tile } from '../game';
 import { BOARD_H, BOARD_W, SWIPE_END_MS, WHEEL_NOTCH, boardSize, wheelPixels, wheelTurns, type Point } from '../opening';
 import type { Skin } from '../skins';
