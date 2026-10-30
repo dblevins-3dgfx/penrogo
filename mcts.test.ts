@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FastBoard, WANDER_CHOICES, chooseMctsMove, neighborArrays, pickMove } from './mcts';
-import { groupAt, opponentOf, playMove, positionKey } from './rules';
+import { groupAt, opponentOf, playMove, positionKey, scoreArea } from './rules';
 import { buildBoard } from './penrose-board';
 import { TILE_SIZE, candidateVertices, computerOpening } from './board-geometry';
 import { board, grid } from './test-boards';
@@ -141,4 +141,21 @@ test('the search\'s fast board agrees with the rules on legal moves, liberties a
   }
   assert.ok(total.captures > 50, `the games captured (${total.captures})`);
   assert.ok(total.kos > 0, `and met simple ko (${total.kos})`);
+});
+
+// Who won a playout: FastBoard's quick count agrees with area scoring when
+// every empty region is a single tile, as at the end of a playout
+test('the playout score matches area scoring at the end of a game', () => {
+  const tiles = grid(5, 5);
+  for (const stones of [
+    board('1.122', '11.22', '1112.', '.1122', '11122'),
+    board('22222', '2.2.2', '22222', '11111', '1.1.1'),
+    board('.1.2.', '11222', '1.12.', '11122', '1.1.2')
+  ]) {
+    const { start, list, n } = neighborArrays(tiles);
+    const fast = new FastBoard(start, list, n);
+    fast.load(stones);
+    const { score } = scoreArea(tiles, stones);
+    assert.equal(fast.scoreDiff(), score[1] - score[2]);
+  }
 });
