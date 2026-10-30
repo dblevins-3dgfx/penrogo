@@ -21,17 +21,17 @@ const Dialog = ({ title, panel, onClose, children }: DialogProps) => {
 
   return (
     <div
-      className="safe-area [--pad:1rem] fixed inset-0 z-10 bg-slate-900/95 overflow-y-auto"
+      className="safe-area [--pad:1rem] short:[--pad:0.5rem] fixed inset-0 z-10 bg-slate-900/95 overflow-y-auto"
       onClick={onClose}
     >
       <div
         role="dialog"
         aria-label={title}
-        className={`max-w-2xl mx-auto ${panel} rounded-lg p-4 sm:p-6 text-slate-300 text-sm sm:text-base`}
+        className={`max-w-2xl mx-auto ${panel} rounded-lg p-4 sm:p-6 short:p-3 text-slate-300 text-sm sm:text-base`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xl sm:text-2xl font-bold text-white">{title}</h2>
+        <div className="flex items-center justify-between mb-2 short:mb-1">
+          <h2 className="text-xl sm:text-2xl short:text-lg font-bold text-white">{title}</h2>
           <button
             onClick={onClose}
             aria-label="Close"

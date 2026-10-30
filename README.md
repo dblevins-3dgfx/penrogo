@@ -50,7 +50,7 @@ One-time setup: repository **Settings → Pages → Build and deployment → Sou
   - `useSettings.ts`: the skin, board size, computer level, and the hints, atari warning and undo settings, saved in the browser
   - `Header.tsx`, `Scoreboard.tsx`, `Controls.tsx`: the pieces of the page
   - `Dialog.tsx`, `HowToPlay.tsx`, `Preferences.tsx`: the dialogs (a shared overlay, the rules, and the settings: skin, Hints, Atari warnings and Undo)
-  - `SkinPreview.tsx`: a skin's preview card picture, drawn with its own hooks
+  - `SkinPreview.tsx`: a skin's preview picture for the chooser in Preferences, drawn with its own hooks
   - `BoardCanvas.tsx`: the board canvas and the skin's effects overlay, drawing and pointer, wheel and right-click input
 - `prefs.ts`: the saved settings' keys, choices and how a saved value is read back, including `SWITCHES`, the table of Preferences on/off switches (a new switch is a row there plus the code that uses it, which reads `switches[id]` in `penrose-territory.tsx`)
 - `game.ts`: the game's state and moves as a pure reducer (opening, claiming, passing, the end), plus the status line, the scoreboard and what the pointer is over
@@ -62,6 +62,7 @@ One-time setup: repository **Settings → Pages → Build and deployment → Sou
 - `types.ts`: types shared by the board, the rules, the game and the skins (players, stones, points, tiles)
 - `board-geometry.ts`: the tile shapes, the canvas and board sizes, the opening tile (where it lies, whether it fits), which tile a point is over, and a tile's centroid and outline path (shared by the board and the skins)
 - `rotation.ts`: turning the opening tile in 36° steps, and how a mouse wheel or trackpad scroll becomes steps
+- `chooser.ts`: stepping through a list of choices with wraparound, and telling a swipe from a tap (the skin chooser)
 - `levels.ts`: the computer's levels (Beginner to Strong) and how each one searches
 - `*.test.ts`: unit tests for the spec's rules; `untested-requirements.md` lists the rules they don't cover yet
 - `skins/`: visual skins, one folder each, found automatically
@@ -80,7 +81,7 @@ One-time setup: repository **Settings → Pages → Build and deployment → Sou
 
 ## Adding a skin
 
-1. Create a folder `skins/<name>/` with an `index.ts` whose default export is a `Skin` (see `skins/types.ts`): an `id`, a `name` for its card in Preferences, an optional `order`, Tailwind classes for the page (`chrome`), optional `players` colors for the page text (default blue and red), and four canvas hooks: `drawBackground`, `drawTile`, `drawLastMove` and `drawTarget`.
+1. Create a folder `skins/<name>/` with an `index.ts` whose default export is a `Skin` (see `skins/types.ts`): an `id`, a `name` shown under its preview in Preferences, an optional `order`, Tailwind classes for the page (`chrome`), optional `players` colors for the page text (default blue and red), and four canvas hooks: `drawBackground`, `drawTile`, `drawLastMove` and `drawTarget`.
 2. Optionally add animations with `createEffects()`, returning an object that implements `SkinEffects`: it gets an overlay canvas plus events (stone placed, stones captured, board created) and can take over drawing the last move and the hover preview. `skins/dazzle/effects.ts` is a full example.
 
 That's all: the skin appears in Preferences automatically, with a preview drawn by its own hooks, and no other file needs to change. `skins/plain-jane/index.ts` is the simplest example to copy.

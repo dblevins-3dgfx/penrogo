@@ -1,11 +1,13 @@
 // The Preferences dialog: the skin, and settings that change how the game
 // helps the player. Each change takes effect at once and is remembered in
 // this browser.
-import { Check } from 'lucide-react';
+import { useRef } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Dialog from './Dialog';
 import SkinPreview from './SkinPreview';
 import { SKINS } from '../skins';
 import { SWITCHES, type SwitchId, type Switches } from '../prefs';
+import { stepChoice, swipeStep } from '../chooser';
 
 type PreferencesProps = {
   panel: string; // the skin's panel classes
@@ -18,7 +20,7 @@ type PreferencesProps = {
 
 // An on/off switch with a label and a line explaining it
 const Toggle = ({ label, detail, on, onChange }: { label: string; detail: string; on: boolean; onChange: (on: boolean) => void }) => (
-  <label className="flex items-start justify-between gap-4 py-2 cursor-pointer">
+  <label className="flex items-start justify-between gap-4 py-2 short:py-1 cursor-pointer">
     <span>
       <span className="block text-white font-semibold">{label}</span>
       <span className="block text-slate-400 text-xs sm:text-sm">{detail}</span>
@@ -37,40 +39,78 @@ const Toggle = ({ label, detail, on, onChange }: { label: string; detail: string
   </label>
 );
 
-// Every skin as a card with a preview; the chosen one is outlined and ticked
-const SkinChooser = ({ skinId, onSkin }: { skinId: string; onSkin: (id: string) => void }) => (
-  <div role="radiogroup" aria-label="Skin" className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mt-1 mb-3">
-    {SKINS.map(k => {
-      const chosen = k.id === skinId;
-      return (
-        <button
-          key={k.id}
-          role="radio"
-          aria-checked={chosen}
-          onClick={() => onSkin(k.id)}
-          className={`rounded-lg p-1.5 text-left bg-slate-800/60 hover:bg-slate-700/60 ring-2 ${
-            chosen ? 'ring-white' : 'ring-transparent'
-          }`}
-        >
-          <SkinPreview skin={k} />
-          <span className="flex items-center justify-between mt-1 px-0.5 text-sm text-white">
-            {k.name}
-            {chosen && <Check size={16} aria-hidden="true" />}
-          </span>
-        </button>
-      );
-    })}
-  </div>
-);
+// The chosen skin's preview, with previous and next buttons either side
+// (wrapping around), its name and place in the list underneath. A swipe
+// across the preview or the Left/Right keys also step. Each step switches
+// the skin at once.
+const SkinChooser = ({ skinId, onSkin }: { skinId: string; onSkin: (id: string) => void }) => {
+  const ids = SKINS.map(k => k.id);
+  const index = Math.max(0, ids.indexOf(skinId));
+  const skin = SKINS[index];
+  const step = (dir: 1 | -1) => onSkin(stepChoice(ids, skin.id, dir));
+  const swipeFrom = useRef<{ x: number; y: number } | null>(null);
 
+  // The arrow keys step the skin here, not the opening tile behind the dialog
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    e.stopPropagation();
+    step(e.key === 'ArrowRight' ? 1 : -1);
+  };
+  const handlePointerDown = (e: React.PointerEvent) => {
+    swipeFrom.current = e.pointerType === 'touch' ? { x: e.clientX, y: e.clientY } : null;
+  };
+  const handlePointerUp = (e: React.PointerEvent) => {
+    const from = swipeFrom.current;
+    swipeFrom.current = null;
+    const dir = from ? swipeStep(e.clientX - from.x, e.clientY - from.y) : 0;
+    if (dir) step(dir);
+  };
+
+  const arrow = 'shrink-0 p-2 rounded-full text-white bg-slate-800/60 hover:bg-slate-700/60';
+  return (
+    <div role="group" aria-label="Skin" className="mt-1 mb-3" onKeyDown={handleKeyDown}>
+      <div className="flex items-center justify-center gap-2 sm:gap-3">
+        <button onClick={() => step(-1)} aria-label="Previous skin" className={arrow}>
+          <ChevronLeft size={22} />
+        </button>
+        <div
+          className="w-full max-w-48 sm:max-w-52 short:max-w-40"
+          style={{ touchAction: 'pan-y' }}
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={() => { swipeFrom.current = null; }}
+        >
+          <SkinPreview skin={skin} />
+        </div>
+        <button onClick={() => step(1)} aria-label="Next skin" className={arrow}>
+          <ChevronRight size={22} />
+        </button>
+      </div>
+      <p aria-live="polite" className="mt-1.5 text-center">
+        <span className="text-white font-semibold">{skin.name}</span>
+        <span className="text-slate-400 text-xs sm:text-sm"> · {index + 1} of {SKINS.length}</span>
+      </p>
+    </div>
+  );
+};
+
+// The skin above the switches; on a phone held sideways (short), side by
+// side, so everything fits without scrolling
 const Preferences = ({ panel, skinId, onSkin, switches, onSwitch, onClose }: PreferencesProps) => (
   <Dialog title="Preferences" panel={panel} onClose={onClose}>
-    <h3 className="text-white font-semibold">Skin</h3>
-    <p className="text-slate-400 text-xs sm:text-sm">How the board and page look. It never changes the game.</p>
-    <SkinChooser skinId={skinId} onSkin={onSkin} />
-    {SWITCHES.map(s => (
-      <Toggle key={s.id} label={s.label} detail={s.detail} on={switches[s.id]} onChange={on => onSwitch(s.id, on)} />
-    ))}
+    <div className="short:grid short:grid-cols-[auto_1fr] short:gap-5 short:items-start">
+      <div>
+        <h3 className="text-white font-semibold">Skin</h3>
+        <p className="text-slate-400 text-xs sm:text-sm short:hidden">How the board and page look. It never changes the game.</p>
+        <SkinChooser skinId={skinId} onSkin={onSkin} />
+      </div>
+      <div>
+        {SWITCHES.map(s => (
+          <Toggle key={s.id} label={s.label} detail={s.detail} on={switches[s.id]} onChange={on => onSwitch(s.id, on)} />
+        ))}
+      </div>
+    </div>
   </Dialog>
 );
 
