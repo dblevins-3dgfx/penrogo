@@ -37,7 +37,8 @@ const stepAt = (steps: [number, number][], t: number) => {
 export class NeonArcadeEffects implements SkinEffects {
   canvas: HTMLCanvasElement | null = null;
   ctx: CanvasRenderingContext2D | null = null;
-  // The board's size in board units (see setBoardSize); the roll bar crosses it
+  // The board's size in board units (see setBoardSize): the roll bar
+  // crosses it, and a captured stone's patch of background is drawn at it
   boardW = BOARD_W;
   boardH = BOARD_H;
   raf = 0;
@@ -158,7 +159,7 @@ export class NeonArcadeEffects implements SkinEffects {
       const v = stepAt(FLICKER_ON, t);
       if (v === null) return false;
       // The board already shows the tube lit: cover it while "off"
-      coverWithEmpty(ctx, f.verts, canvas.width, canvas.height);
+      coverWithEmpty(ctx, f.verts, this.boardW, this.boardH);
       drawTube(ctx, f.verts, color, v);
       return true;
     }

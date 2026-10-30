@@ -44,7 +44,8 @@ export interface SkinEffects {
 
   // The board's size in board units (800 x 600 for a full board, smaller
   // for the smaller sizes), before attach and again if it changes. Use it,
-  // not the canvas's size, for anything that should span the board.
+  // not the canvas's size, for anything that should span the board or
+  // match it, such as a sweep across it or a patch of its background.
   setBoardSize?(w: number, h: number): void;
 
   // The current board: tiles (with verts) and who holds each one

@@ -8,7 +8,7 @@
 //
 // The loop runs only while one of these is in progress.
 import type { SkinEffects, Point, Player } from '../types';
-import { centroidOf } from '../../board-geometry';
+import { centroidOf, BOARD_H, BOARD_W } from '../../board-geometry';
 import { drawHatch, drawOutline, coverWithEmpty } from './drafting';
 
 const TRACE_MS = 320;
@@ -24,8 +24,17 @@ type Job = { kind: 'draw' | 'erase'; verts: Point[]; player: Player; start: numb
 export class BlueprintEffects implements SkinEffects {
   canvas: HTMLCanvasElement | null = null;
   ctx: CanvasRenderingContext2D | null = null;
+  // The board's size in board units (see setBoardSize); a captured stone's
+  // patch of background is drawn at it, so it matches the board's
+  boardW = BOARD_W;
+  boardH = BOARD_H;
   raf = 0;
   jobs: Job[] = [];
+
+  setBoardSize(w: number, h: number) {
+    this.boardW = w;
+    this.boardH = h;
+  }
 
   attach(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -78,7 +87,7 @@ export class BlueprintEffects implements SkinEffects {
     if (t >= TRACE_MS + HATCH_MS) return false;
     const { ctx, canvas } = this;
     if (!ctx || !canvas) return false;
-    coverWithEmpty(ctx, j.verts, canvas.width, canvas.height);
+    coverWithEmpty(ctx, j.verts, this.boardW, this.boardH);
     const trace = Math.min(1, t / TRACE_MS);
     const hatch = Math.max(0, (t - TRACE_MS) / HATCH_MS);
     drawHatch(ctx, j.verts, j.player, hatch);
