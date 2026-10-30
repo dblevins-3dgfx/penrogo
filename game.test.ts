@@ -6,7 +6,7 @@ import {
 } from './game';
 import { BOARD_W, COMPUTER_OPENING, boardSize, candidateVertices, computerOpening } from './opening';
 import { centroidOf } from './skins/canvas-utils';
-import { positionKey } from './go-engine';
+import { positionKey } from './rules';
 
 const run = (g: GameState, ...actions: GameAction[]) => actions.reduce(gameReducer, g);
 const started = (mode: 'ai' | 'two' = 'two') => run(initialGame(mode), { type: 'start' });

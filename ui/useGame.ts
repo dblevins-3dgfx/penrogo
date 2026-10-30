@@ -1,5 +1,5 @@
 // The game as React state: the reducer from game.ts, plus the two searches
-// that run in a Web Worker (go-engine's Monte Carlo player):
+// that run in a Web Worker (the Monte Carlo player in mcts.ts):
 // - the computer's turn: it opens the board (after a short pause) or
 //   searches for a move and plays it, or passes;
 // - a hint: when one is asked for, the search looks for the best move for
@@ -10,7 +10,7 @@ import { useEffect, useReducer } from 'react';
 import { HINT_TIME_MS, gameReducer, initialGame, isComputerTurn, type GameState } from '../game';
 import { boardSize, computerOpening } from '../opening';
 import type { ThinkRequest } from '../ai-worker';
-import type { SearchOptions } from '../go-engine';
+import type { SearchOptions } from '../mcts';
 import type { Player } from '../types';
 
 const COMPUTER_OPENING_DELAY_MS = 400;
