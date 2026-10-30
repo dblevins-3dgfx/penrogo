@@ -19,7 +19,7 @@
 // loop keeps running, capped at PERSISTENT_FPS when nothing else moves.
 
 import type { Owner, Player, Point, SkinEffects } from '../types';
-import { centroidOf, tracePolygon } from '../../board-geometry';
+import { centroidOf, tracePolygon, BOARD_H, BOARD_W } from '../../board-geometry';
 import { drawSparkle, mix, rgb } from '../canvas-utils';
 import { GEMS, LIGHT, BG_SPARKLES, drawDazzleBackground, drawGem } from './gems';
 
@@ -68,6 +68,10 @@ type NewEffect = Effect extends infer E ? (E extends Effect ? Omit<E, 'start'> :
 export class DazzleEffects implements SkinEffects {
   canvas: HTMLCanvasElement | null = null;
   ctx: CanvasRenderingContext2D | null = null;
+  // The board's size in board units (see setBoardSize); a captured stone's
+  // patch of background is drawn at it, so it matches the board's
+  boardW = BOARD_W;
+  boardH = BOARD_H;
   effects: Effect[] = [];
   raf = 0;
   idleTimer: ReturnType<typeof setTimeout> | undefined;
@@ -76,6 +80,11 @@ export class DazzleEffects implements SkinEffects {
   lastMove: Point[] | null = null;
   target: { verts: Point[]; player: Player } | null = null;
   lastFrame = 0;
+
+  setBoardSize(w: number, h: number) {
+    this.boardW = w;
+    this.boardH = h;
+  }
 
   attach(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -306,7 +315,7 @@ export class DazzleEffects implements SkinEffects {
         ctx.closePath();
       }
       ctx.clip();
-      drawDazzleBackground(ctx, canvas.width, canvas.height);
+      drawDazzleBackground(ctx, this.boardW, this.boardH);
       ctx.restore();
     }
     // Each socket flashes gold as it appears

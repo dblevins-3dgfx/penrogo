@@ -8,6 +8,7 @@
 //              Player 2's on the right), fading as they go
 //
 // The loop runs only while one of these is in progress.
+import { BOARD_H, BOARD_W } from '../../board-geometry';
 import type { SkinEffects, Point, Player } from '../types';
 import { drawStone, coverWithEmpty } from './stones';
 
@@ -25,8 +26,17 @@ type Job =
 export class GoClassicEffects implements SkinEffects {
   canvas: HTMLCanvasElement | null = null;
   ctx: CanvasRenderingContext2D | null = null;
+  // The board's size in board units (see setBoardSize); a captured stone's
+  // patch of background is drawn at it, so it matches the board's
+  boardW = BOARD_W;
+  boardH = BOARD_H;
   raf = 0;
   jobs: Job[] = [];
+
+  setBoardSize(w: number, h: number) {
+    this.boardW = w;
+    this.boardH = h;
+  }
 
   attach(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -74,7 +84,7 @@ export class GoClassicEffects implements SkinEffects {
     if (!ctx || !canvas) return false;
     const k = t / DROP_MS;
     const ease = 1 - (1 - k) * (1 - k); // fast, then settling
-    coverWithEmpty(ctx, j.verts, canvas.width, canvas.height);
+    coverWithEmpty(ctx, j.verts, this.boardW, this.boardH);
     drawStone(ctx, j.verts, j.player, { scale: 1.22 - 0.22 * ease, lift: 7 * (1 - ease), alpha: 0.5 + 0.5 * ease });
     return true;
   }
