@@ -98,21 +98,16 @@ const PenroseTerritoryGame = () => {
             game={game}
             dispatch={dispatch}
             panel={panel}
-            level={level}
-            onLevel={setLevel}
-            boardSizeId={boardSizeId}
-            onBoardSize={setBoardSize}
-            tileType={tileType}
-            onTileType={setTileType}
-            rotation={rotation}
-            onRotate={rotate}
-            isTouchDevice={isTouchDevice}
-            target={target}
-            onPlace={placeTarget}
-            hintsOn={switches.hints}
-            undoOn={switches.undo}
-            onStart={start}
-            onNewGame={newGame}
+            start={{ level, onLevel: setLevel, boardSizeId, onBoardSize: setBoardSize, onStart: start }}
+            play={{
+              isTouchDevice,
+              target,
+              onPlace: placeTarget,
+              hintsOn: switches.hints,
+              undoOn: switches.undo,
+              onNewGame: newGame,
+              opening: { tileType, onTileType: setTileType, rotation, onRotate: rotate, isTouchDevice }
+            }}
           />
         </div>
 
