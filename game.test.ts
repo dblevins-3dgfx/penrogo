@@ -6,7 +6,7 @@ import {
 } from './game';
 import { targetAt } from './targeting';
 import { BOARD_W, COMPUTER_OPENING, boardSize, candidateVertices, computerOpening } from './board-geometry';
-import { positionKey } from './rules';
+import { groupAt, positionKey } from './rules';
 
 const run = (g: GameState, ...actions: GameAction[]) => actions.reduce(gameReducer, g);
 const started = (mode: 'ai' | 'two' = 'two') => run(initialGame(mode), { type: 'start' });
@@ -433,4 +433,38 @@ test('the opening tile must fit inside the chosen board', () => {
   assert.equal(targetOf(g, pos, 'kite', 0).legal, false);
   assert.equal(targetOf(started(), pos, 'kite', 0).legal, true);
   assert.equal(run(g, { type: 'open', cand: { type: 'kite', ...pos, rotation: 0 } }).tiles, null, 'not placed');
+});
+
+// The status texts the spec quotes, word for word
+test('the status line uses the spec\'s wording', () => {
+  assert.equal(HINT_THINKING, 'Looking for a good move…');
+  assert.equal(HINT_MOVE, 'Hint: the highlighted tile is a good move.');
+  assert.equal(HINT_PASS, 'Hint: passing is a good choice here.');
+  assert.equal(UNDONE, 'Move taken back.');
+  assert.equal(THINKING, 'Computer is thinking…');
+  assert.equal(OPENING_HINT, 'Place the first tile anywhere: the board is built around it.');
+  assert.equal(initialGame().message, '', 'nothing before the game starts');
+});
+
+test('a tile can\'t be claimed before the opening builds the board', () => {
+  const g = started();
+  assert.equal(run(g, { type: 'claim', id: 0 }), g);
+});
+
+// Spec 5, Capture: the status line counts the tiles captured
+test('capturing several tiles says how many', () => {
+  // Player 1's opening stone and a neighbor form a group; Player 2 holds
+  // every liberty but one and then takes that one
+  const g = opened();
+  const tiles = tilesOf(g);
+  const o = lastOf(g);
+  const pair = tiles[o].neighbors[0];
+  const stones = g.stones.map((s, i) => (i === pair ? 1 : s));
+  const libs = [...groupAt(tiles, stones, o).liberties];
+  const last = libs.pop() as number;
+  const surrounded = stones.map((s, i) => (libs.includes(i) ? 2 : s));
+  const before = { ...g, stones: surrounded, history: new Set([positionKey(surrounded)]) };
+  const after = run(before, { type: 'claim', id: last });
+  assert.equal(after.captured[2], 2);
+  assert.equal(after.message, 'Player 2 captured 2 tiles!');
 });

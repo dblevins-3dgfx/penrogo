@@ -110,3 +110,13 @@ test('before the board exists, a double tap is a second tap close to the first',
   assert.equal(isDoubleTap({ time: 0, pos: p }, { time: 200, pos: { x: 400, y: 301 + DOUBLE_TAP_DIST } }, null), false, 'too far');
   assert.equal(isDoubleTap({ time: 0, pos: p }, { time: 400, pos: p }, null), false, 'too slow');
 });
+
+// The board's first tile (id 0) counts like any other
+test('the first tile of the board can be targeted and double-tapped', () => {
+  const g = opened();
+  const tiles = tilesOf(g);
+  const c = centroidOf(tiles[0].verts);
+  const t = targetOf(g, c, 'kite', 0);
+  assert.equal(t.kind === 'tile' && t.id, 0);
+  assert.equal(isDoubleTap({ time: 0, pos: c }, { time: 100, pos: c }, tiles), true);
+});

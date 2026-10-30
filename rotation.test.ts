@@ -42,3 +42,8 @@ test('a trackpad swipe turns one step per TRACKPAD_STEP pixels, carrying the res
   assert.deepEqual(wheelTurns(20, -40), { turns: [], total: -20 });
   assert.deepEqual(wheelTurns(-20, -40), { turns: [1], total: -10 });
 });
+
+test('a trackpad swipe turns as soon as it reaches TRACKPAD_STEP pixels', () => {
+  assert.deepEqual(wheelTurns(-(TRACKPAD_STEP - 10), -10), { turns: [1], total: 0 });
+  assert.deepEqual(wheelTurns(0, -(TRACKPAD_STEP - 1)), { turns: [], total: -(TRACKPAD_STEP - 1) });
+});

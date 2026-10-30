@@ -12,3 +12,10 @@ test('the levels are Beginner, Easy, Medium and Strong, getting stronger, Medium
   assert.equal(beginner.wander, 0.3, 'and sometimes picks a runner-up move');
   for (const l of LEVELS.slice(1)) assert.equal(l.search.wander ?? 0, 0, `${l.name} plays its best move`);
 });
+
+test('each level is found by its id; the ids are saved, so they stay the same', () => {
+  // Changing an id would lose the level players have saved
+  assert.deepEqual(LEVELS.map(l => l.id), ['beginner', 'easy', 'medium', 'strong']);
+  for (const l of LEVELS) assert.equal(levelById(l.id), l);
+  assert.equal(levelById('strong').search.timeMs, 10000);
+});

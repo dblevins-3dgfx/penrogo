@@ -41,6 +41,13 @@ One-time setup: repository **Settings → Pages → Build and deployment → Sou
 | `npm run typecheck` | Run the TypeScript checker |
 | `npm run lint` | Run the linter (oxlint, configured in `.oxlintrc.json`) |
 | `npm test` | Run the unit tests (`*.test.ts`) |
+| `npm run mutate` | Mutation testing: check how well the unit tests catch bugs (about 15 minutes; see below) |
+
+### Mutation testing
+
+`npm run mutate` runs [StrykerJS](https://stryker-mutator.io/) (configured in `stryker.config.mjs`) on the plain modules the unit tests cover. It makes about 1,500 small deliberate changes to the code ("mutants"), such as flipping a `<` to `<=` or deleting a statement, and runs the tests that reach each one. A mutant the tests catch is *killed*; one that survives points at behavior no test checks. It prints a table per file and writes an HTML report to `reports/mutation/index.html` (not committed) that shows each surviving mutant in the source.
+
+It takes about 15 minutes, so it isn't part of CI: run it after changing the rules or their tests, and look at the survivors. Some are *equivalent* (they can't change the result, e.g. `a < b` vs `a >= b` when building a symmetric key) and stay; the rest are tests worth writing. Most survivors are in `mcts.ts`'s search heuristics, which make the computer play weaker, not wrongly, and can't be pinned by a unit test.
 
 ## Layout
 

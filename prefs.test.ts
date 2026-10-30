@@ -67,3 +67,12 @@ test('each setting is saved under its own key', () => {
   ];
   assert.equal(new Set(keys).size, keys.length);
 });
+
+test('the saved settings keep their keys and values, so they carry over between versions', () => {
+  assert.equal(SKIN_STORAGE_KEY, 'penrogo.skin');
+  assert.equal(LEVEL_STORAGE_KEY, 'penrogo.computer');
+  assert.equal(BOARD_STORAGE_KEY, 'penrogo.board');
+  assert.equal(OLD_THINK_STORAGE_KEY, 'penrogo.thinkSeconds');
+  assert.equal(formatSwitch(true), 'on');
+  assert.equal(formatSwitch(false), 'off');
+});

@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  BOARD_H, BOARD_W, COMPUTER_OPENING, PHI, TILE_SIZE, candidateVertices, centroidOf, dartVertices, isKite, isOutsidePlayfield, kiteVertices, tileAtPoint
+  BOARD_H, BOARD_W, COMPUTER_OPENING, PHI, TILE_SIZE, boardSize, candidateVertices, centroidOf, dartVertices, isKite,
+  isOutsidePlayfield, kiteVertices, tileAtPoint, tracePolygon, type BoardSizeId
 } from './board-geometry';
 import { buildBoard } from './penrose-board';
 import type { Point } from './types';
@@ -24,22 +25,35 @@ const angleAt = (v: Point[], i: number) => {
 };
 
 // Spec 3: kite and dart shapes, long edge L and short edge L / phi
+// At several rotations: at 0 alone, a corner misplaced by mirroring it
+// across the axis would go unnoticed (cos 36° = cos -36°)
+const ROTATIONS = [0, 36, 108, 252];
+
 test('a kite has edges long, short, short, long, and angles 72, 72, 144, 72', () => {
-  const v = kiteVertices(100, 100, 0);
-  const e = edges(v);
-  assert.ok(near(e[0], L) && near(e[3], L), `long edges ${e}`);
-  assert.ok(near(e[1], L / PHI) && near(e[2], L / PHI), `short edges ${e}`);
-  const angles = [0, 1, 2, 3].map(i => angleAt(v, i));
-  [72, 72, 144, 72].forEach((a, i) => assert.ok(Math.abs(angles[i] - a) < 1e-6, `angles ${angles}`));
+  for (const rotation of ROTATIONS) {
+    const v = kiteVertices(100, 100, rotation);
+    const e = edges(v);
+    assert.ok(near(e[0], L) && near(e[3], L), `long edges ${e} at ${rotation}°`);
+    assert.ok(near(e[1], L / PHI) && near(e[2], L / PHI), `short edges ${e} at ${rotation}°`);
+    const angles = [0, 1, 2, 3].map(i => angleAt(v, i));
+    [72, 72, 144, 72].forEach((a, i) => assert.ok(Math.abs(angles[i] - a) < 1e-6, `angles ${angles} at ${rotation}°`));
+  }
 });
 
 test('a dart has edges long, short, short, long, and angles 72, 36, 216, 36', () => {
-  const v = dartVertices(100, 100, 0);
-  const e = edges(v);
-  assert.ok(near(e[0], L) && near(e[3], L), `long edges ${e}`);
-  assert.ok(near(e[1], L / PHI) && near(e[2], L / PHI), `short edges ${e}`);
-  const angles = [0, 1, 2, 3].map(i => angleAt(v, i));
-  [72, 36, 216, 36].forEach((a, i) => assert.ok(Math.abs(angles[i] - a) < 1e-6, `angles ${angles}`));
+  for (const rotation of ROTATIONS) {
+    const v = dartVertices(100, 100, rotation);
+    const e = edges(v);
+    assert.ok(near(e[0], L) && near(e[3], L), `long edges ${e} at ${rotation}°`);
+    assert.ok(near(e[1], L / PHI) && near(e[2], L / PHI), `short edges ${e} at ${rotation}°`);
+    const angles = [0, 1, 2, 3].map(i => angleAt(v, i));
+    [72, 36, 216, 36].forEach((a, i) => assert.ok(Math.abs(angles[i] - a) < 1e-6, `angles ${angles} at ${rotation}°`));
+  }
+});
+
+test('an opening tile of each type has that type\'s shape', () => {
+  assert.deepEqual(candidateVertices({ type: 'kite', x: 300, y: 200, rotation: 72 }), kiteVertices(300, 200, 72));
+  assert.deepEqual(candidateVertices({ type: 'dart', x: 300, y: 200, rotation: 72 }), dartVertices(300, 200, 72));
 });
 
 // Spec 3: positioned by its centroid
@@ -68,6 +82,28 @@ test('a tile is outside the playfield when any vertex sticks out', () => {
   // Rounding on an edge is tolerated
   assert.equal(isOutsidePlayfield([{ x: -0.4, y: 0 }, { x: BOARD_W + 0.4, y: BOARD_H }]), false);
   assert.equal(isOutsidePlayfield([{ x: -0.6, y: 0 }]), true);
+  // The top and bottom edges too, and a smaller board's own edges
+  assert.equal(isOutsidePlayfield(kiteVertices(BOARD_W / 2, 5, 90)), true, 'over the top');
+  assert.equal(isOutsidePlayfield([{ x: 10, y: BOARD_H + 0.6 }]), true, 'below the bottom');
+  assert.equal(isOutsidePlayfield([{ x: 10, y: -0.6 }]), true, 'above the top');
+  assert.equal(isOutsidePlayfield([{ x: 10, y: 350 }], 448, 336), true, 'below a small board');
+  assert.equal(isOutsidePlayfield([{ x: 450, y: 10 }], 448, 336), true, 'right of a small board');
+});
+
+test('an unknown board size falls back to Full', () => {
+  assert.equal(boardSize('huge' as BoardSizeId).id, 'full');
+});
+
+test('tracePolygon traces a closed path through every corner', () => {
+  const calls: string[] = [];
+  const ctx = {
+    beginPath: () => calls.push('begin'),
+    moveTo: (x: number, y: number) => calls.push(`move ${x},${y}`),
+    lineTo: (x: number, y: number) => calls.push(`line ${x},${y}`),
+    closePath: () => calls.push('close')
+  } as unknown as CanvasRenderingContext2D;
+  tracePolygon(ctx, [{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 4, y: 2 }]);
+  assert.deepEqual(calls, ['begin', 'move 0,0', 'line 0,0', 'line 4,0', 'line 4,2', 'close']);
 });
 
 // Spec 5, Opening: the computer opens with a kite at the board center
