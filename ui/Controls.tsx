@@ -8,25 +8,48 @@ import { isHumanTurn, undoDepth, type GameAction, type GameState, type Target } 
 import { BOARD_SIZES, type BoardSizeId, type TileType } from '../board-geometry';
 import { LEVELS, type LevelId } from '../levels';
 
-type ControlsProps = {
+// What every panel gets: the game and a way to act on it
+type GameProps = {
   game: GameState;
   dispatch: (a: GameAction) => void;
-  panel: string; // the skin's panel classes
+};
+
+// Before a game: the board size and the computer's level (saved settings),
+// and Start
+type StartPanelProps = GameProps & {
   level: LevelId;
   onLevel: (l: LevelId) => void;
   boardSizeId: BoardSizeId;
   onBoardSize: (s: BoardSizeId) => void;
+  onStart: () => void;
+};
+
+// Until the board exists: the opening tile's type and rotation
+type OpeningControlsProps = {
   tileType: TileType;
   onTileType: (t: TileType) => void;
   rotation: number;
   onRotate: (dir: 1 | -1) => void;
   isTouchDevice: boolean;
+};
+
+// During a game: Place (touch), Hint, Undo, Pass and New Game, and the
+// opening controls until the board exists
+type PlayControlsProps = GameProps & {
+  isTouchDevice: boolean;
   target: Target | null;
   onPlace: () => void;
   hintsOn: boolean;
   undoOn: boolean;
-  onStart: () => void;
   onNewGame: () => void;
+  opening: OpeningControlsProps;
+};
+
+// The panel: the game, the skin's panel classes, and each panel's own props
+type ControlsProps = GameProps & {
+  panel: string;
+  start: Omit<StartPanelProps, keyof GameProps>;
+  play: Omit<PlayControlsProps, keyof GameProps>;
 };
 
 // A two-way choice button, highlighted when chosen
@@ -54,7 +77,7 @@ const Choice = <T extends string>({ label, value, options, onChange }: {
 const SIZE_OPTIONS = BOARD_SIZES.map(s => ({ id: s.id, text: `${s.name} (~${s.tiles} tiles)` }));
 const LEVEL_OPTIONS = LEVELS.map(l => ({ id: l.id, text: l.name }));
 
-const StartPanel = ({ game, dispatch, level, onLevel, boardSizeId, onBoardSize, onStart }: ControlsProps) => (
+const StartPanel = ({ game, dispatch, level, onLevel, boardSizeId, onBoardSize, onStart }: StartPanelProps) => (
   <>
     <div className="flex gap-2">
       <button
@@ -82,7 +105,7 @@ const StartPanel = ({ game, dispatch, level, onLevel, boardSizeId, onBoardSize, 
   </>
 );
 
-const OpeningControls = ({ tileType, onTileType, rotation, onRotate, isTouchDevice }: ControlsProps) => (
+const OpeningControls = ({ tileType, onTileType, rotation, onRotate, isTouchDevice }: OpeningControlsProps) => (
   <>
     <div className="flex gap-2">
       <button onClick={() => onTileType('kite')} className={choiceClass(tileType === 'kite', 'px-4 py-2')}>
@@ -122,15 +145,15 @@ const OpeningControls = ({ tileType, onTileType, rotation, onRotate, isTouchDevi
   </>
 );
 
-const PlayControls = (props: ControlsProps) => {
-  const { game, dispatch, isTouchDevice, target, onPlace, hintsOn, undoOn, onNewGame } = props;
+const PlayControls = (props: PlayControlsProps) => {
+  const { game, dispatch, isTouchDevice, target, onPlace, hintsOn, undoOn, onNewGame, opening } = props;
   const humanTurn = isHumanTurn(game);
   const canPlace = !!target && target.legal;
   const canHint = humanTurn && game.hint?.status !== 'thinking';
   const canUndo = undoDepth(game) > 0;
   return (
     <>
-      {!game.tiles && <OpeningControls {...props} />}
+      {!game.tiles && <OpeningControls {...opening} />}
 
       {isTouchDevice && !game.gameOver && (
         <button
@@ -194,10 +217,12 @@ const PlayControls = (props: ControlsProps) => {
   );
 };
 
-const Controls = (props: ControlsProps) => (
+const Controls = ({ game, dispatch, panel, start, play }: ControlsProps) => (
   // On a phone held sideways, every button is shorter so the panel fits
-  <div className={`${props.panel} rounded-lg p-2 flex gap-2 sm:gap-3 short:gap-1.5 items-center justify-center flex-wrap short:[&_button]:py-1.5 short:[&_button]:px-3`}>
-    {props.game.started ? <PlayControls {...props} /> : <StartPanel {...props} />}
+  <div className={`${panel} rounded-lg p-2 flex gap-2 sm:gap-3 short:gap-1.5 items-center justify-center flex-wrap short:[&_button]:py-1.5 short:[&_button]:px-3`}>
+    {game.started
+      ? <PlayControls game={game} dispatch={dispatch} {...play} />
+      : <StartPanel game={game} dispatch={dispatch} {...start} />}
   </div>
 );
 
