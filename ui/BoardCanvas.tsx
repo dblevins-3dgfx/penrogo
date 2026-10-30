@@ -27,11 +27,12 @@ type BoardCanvasProps = {
 
 // The skin's animated effects, if it has any, unless the device asks for
 // reduced motion. Null without effects; its event methods are optional
-// (see skins/types.ts). It is told what each move did, the board, the last
-// move and the legal preview.
-const useSkinEffects = (skin: Skin, game: GameState, target: Target | null, scale: number,
+// (see skins/types.ts). It is told the board's size, what each move did,
+// the board, the last move and the legal preview.
+const useSkinEffects = (skin: Skin, game: GameState, target: Target | null,
   overlayRef: React.RefObject<HTMLCanvasElement | null>) => {
   const { tiles, stones, lastMove, currentPlayer, event } = game;
+  const { w, h } = boardSize(game.size);
   const reducedMotion = useMemo(
     () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
     []
@@ -41,14 +42,17 @@ const useSkinEffects = (skin: Skin, game: GameState, target: Target | null, scal
     [skin, reducedMotion]
   );
 
-  // The effects draw in board units too: the overlay is scaled like the board
+  // The effects draw in board units too: the overlay is scaled like the
+  // board, and they are told the board's size
   useEffect(() => {
     const overlay = overlayRef.current;
     if (!fx || !overlay) return;
+    const scale = overlay.width / w;
     overlay.getContext('2d')?.setTransform(scale, 0, 0, scale, 0, 0);
+    fx.setBoardSize?.(w, h);
     fx.attach(overlay);
     return () => fx.detach();
-  }, [fx, overlayRef, scale]);
+  }, [fx, overlayRef, w, h]);
 
   // Only on a new event, so switching skins doesn't replay the last one
   const forwarded = useRef<GameEvent | null>(null);
@@ -185,7 +189,7 @@ const BoardCanvas = ({ skin, game, target, atari, onHover, onClick, onRotate }: 
   const overlayRef = useRef<HTMLCanvasElement>(null);
   // Canvas units per board unit
   const scale = BOARD_W / boardSize(game.size).w;
-  const fx = useSkinEffects(skin, game, target, scale, overlayRef);
+  const fx = useSkinEffects(skin, game, target, overlayRef);
   // Effects that take over drawing the last move / the legal preview
   const fxDrawsLastMove = !!fx?.setLastMove;
   const fxDrawsTarget = !!fx?.setTarget;

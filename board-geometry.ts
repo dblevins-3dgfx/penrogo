@@ -104,6 +104,15 @@ const pointInTriangle = (px: number, py: number, tri: Point[]) => {
 export const tileAtPoint = (tiles: { verts: Point[] }[], x: number, y: number): number =>
   tiles.findIndex(t => toTriangles(t.verts).some(tri => pointInTriangle(x, y, tri)));
 
+// Whether a tile's corners make a kite rather than a dart, from its shape
+// alone, at any size: a kite's axis (corner 0 to 2) is as long as its long
+// edge (corner 0 to 1); a dart's is the long edge divided by phi (0.62).
+export const isKite = (verts: Point[]): boolean => {
+  const axis = Math.hypot(verts[2].x - verts[0].x, verts[2].y - verts[0].y);
+  const longEdge = Math.hypot(verts[1].x - verts[0].x, verts[1].y - verts[0].y);
+  return axis > 0.8 * longEdge;
+};
+
 // The average of a tile's corners: inside a kite, and inside a dart short of
 // its notch.
 export const centroidOf = (verts: Point[]): Point => ({

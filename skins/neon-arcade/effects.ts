@@ -10,7 +10,7 @@
 // The loop runs while the last move is shown (capped at PERSISTENT_FPS when
 // nothing else moves) or while any other effect is in progress.
 import type { SkinEffects, Point, Player, Owner } from '../types';
-import { centroidOf } from '../../board-geometry';
+import { centroidOf, BOARD_H, BOARD_W } from '../../board-geometry';
 import { NEON, drawTube, drawSpark, coverWithEmpty } from './neon';
 
 const PERSISTENT_FPS = 30;
@@ -37,6 +37,9 @@ const stepAt = (steps: [number, number][], t: number) => {
 export class NeonArcadeEffects implements SkinEffects {
   canvas: HTMLCanvasElement | null = null;
   ctx: CanvasRenderingContext2D | null = null;
+  // The board's size in board units (see setBoardSize); the roll bar crosses it
+  boardW = BOARD_W;
+  boardH = BOARD_H;
   raf = 0;
   lastFrame = 0;
   timer = 0;
@@ -45,6 +48,11 @@ export class NeonArcadeEffects implements SkinEffects {
   stoneOf = new Map<Point[], Owner>();
   flickers: Flicker[] = [];
   rollStart: number | null = null;
+
+  setBoardSize(w: number, h: number) {
+    this.boardW = w;
+    this.boardH = h;
+  }
 
   attach(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -170,12 +178,12 @@ export class NeonArcadeEffects implements SkinEffects {
   drawRoll(k: number) {
     const { ctx, canvas } = this;
     if (!ctx || !canvas) return;
-    const y = -ROLL_HEIGHT + k * (canvas.height + 2 * ROLL_HEIGHT);
+    const y = -ROLL_HEIGHT + k * (this.boardH + 2 * ROLL_HEIGHT);
     const g = ctx.createLinearGradient(0, y - ROLL_HEIGHT / 2, 0, y + ROLL_HEIGHT / 2);
     g.addColorStop(0, 'rgba(255, 255, 255, 0)');
     g.addColorStop(0.5, 'rgba(200, 230, 255, 0.07)');
     g.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.fillStyle = g;
-    ctx.fillRect(0, y - ROLL_HEIGHT / 2, canvas.width, ROLL_HEIGHT);
+    ctx.fillRect(0, y - ROLL_HEIGHT / 2, this.boardW, ROLL_HEIGHT);
   }
 }
