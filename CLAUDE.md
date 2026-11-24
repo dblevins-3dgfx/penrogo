@@ -1,3 +1,5 @@
+See [AGENTS.md](AGENTS.md) and [DEVELOPMENT.md](DEVELOPMENT.md) for the workflow, checks, gotchas and past decisions.
+
 # Keep the spec in step with the code
 
 `penrose-territory-spec.md` describes the game as it is implemented. Any change the player can see, or that changes what is stored (play, board generation, rules, the computer opponent, the screen, skins, controls, settings kept in the browser), updates the spec in the same pull request. The PR description names the spec sections that changed, or says why none needed to.
